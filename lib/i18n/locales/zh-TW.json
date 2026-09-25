@@ -209,7 +209,7 @@
     }
   },
   "agentBar": {
-    "readyToLearn": "準備好一起學習了嗎？",
+    "readyToLearn": "這節課準備講什麼？",
     "expandedTitle": "課堂角色設定",
     "configTooltip": "點擊設定課堂角色",
     "voiceLabel": "聲線",
@@ -1013,7 +1013,7 @@
     "pdfSizeLimit": "支援最大50MB的PDF檔案",
     "courseMaterialSizeLimit": "支援文件、簡報、表格、圖像、純文字，最大 50MB（實際支援格式依所選解析器而定）",
     "generateFailed": "生成課堂失敗，請重試",
-    "requirementPlaceholder": "輸入你想學的任何內容，例如：\n「從零學 Python，30 分鐘寫出第一個程式」\n「用白板為我講解傅立葉轉換」\n「阿瓦隆桌遊怎麼玩」",
+    "requirementPlaceholder": "寫下要給學生講的一節課：年級、科目、這節課講什麼。也可以點左邊的迴紋針附上教材。\n「三年級語文《灰雀》：讀懂課文，體會列寧對灰雀的喜愛」\n「五年級數學：用分蛋糕講清楚什麼是分數」\n「初二物理：光的反射，講清入射角和反射角」",
     "requirementRequired": "請輸入課程需求",
     "fileTooLarge": "檔案過大，請選擇小於 50MB 的檔案",
     "courseMaterialCountLimit": "最多可上傳 5 個課程材料檔案",
