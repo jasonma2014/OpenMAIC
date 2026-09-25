@@ -108,12 +108,10 @@ function GenerationPreviewContent() {
   const saasSession = useSaasSession();
   const needsQuote =
     saasMode && saasSession.status === 'signed-in' && saasSession.account.role !== 'student';
-  const [quoteOk, setQuoteOk] = useState(false);
-  const waitingForQuote = needsQuote && !quoteOk;
-  const acceptQuote = useCallback((ok: boolean) => setQuoteOk(ok), []);
+  const ignoreQuote = useCallback(() => {}, []);
   const saasReady =
     !saasMode ||
-    (saasSession.status === 'signed-in' && saasSession.account.role !== 'student' && quoteOk);
+    (saasSession.status === 'signed-in' && saasSession.account.role !== 'student');
   const hasStartedRef = useRef(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const outlineReviewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1358,8 +1356,7 @@ function GenerationPreviewContent() {
           className="w-full"
         >
           <Card className="relative overflow-hidden border-muted/40 shadow-2xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl min-h-[400px] flex flex-col items-center justify-center p-8 md:p-12">
-            {!waitingForQuote ? (
-              <div className="absolute top-6 left-0 right-0 flex justify-center gap-2">
+            <div className="absolute top-6 left-0 right-0 flex justify-center gap-2">
                 {activeSteps.map((step, idx) => (
                   <div
                     key={step.id}
@@ -1374,13 +1371,11 @@ function GenerationPreviewContent() {
                   />
                 ))}
               </div>
-            ) : null}
 
             {/* Central Content */}
             <div className="flex-1 flex flex-col items-center justify-center w-full space-y-8 mt-4">
-              {needsQuote ? <LessonQuote onSufficient={acceptQuote} /> : null}
-              {waitingForQuote ? null : (
-                <>
+              {needsQuote ? <LessonQuote onSufficient={ignoreQuote} /> : null}
+              <>
                   {/* Icon / Visualizer Container */}
                   <div className="relative size-48 flex items-center justify-center">
                     <AnimatePresence mode="popLayout">
@@ -1508,8 +1503,7 @@ function GenerationPreviewContent() {
                       )}
                     </AnimatePresence>
                   </div>
-                </>
-              )}
+              </>
             </div>
           </Card>
         </motion.div>
@@ -1527,7 +1521,7 @@ function GenerationPreviewContent() {
                   {t('generation.goBackAndRetry')}
                 </Button>
               </motion.div>
-            ) : isOutlineReady || waitingForQuote ? null : !isComplete ? (
+            ) : isOutlineReady ? null : !isComplete ? (
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}

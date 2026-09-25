@@ -136,9 +136,15 @@ export async function resolveModel(params: {
   //  - routed + no thinking  → routed model uses its own default; client thinking
   //    is dropped (it belonged to the client's other model).
   //  - unrouted              → honor the client's thinking config.
-  const thinkingConfig: ThinkingConfig | undefined = routed
-    ? stageRoute?.thinking
-    : params.thinkingConfig;
+  // DeepSeek's default effort is high. On an outline that means about a
+  // minute of hidden reasoning before the first page appears. Teachers
+  // should see the outline as soon as the model starts writing.
+  const thinkingConfig: ThinkingConfig | undefined =
+    isSaasEnabled() && params.stage === 'scene-outlines-stream'
+      ? { mode: 'disabled', effort: 'none' }
+      : routed
+        ? stageRoute?.thinking
+        : params.thinkingConfig;
 
   return {
     model,

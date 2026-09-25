@@ -43,6 +43,7 @@ describe('resolveModel — per-stage resolution order', () => {
     mocks.serverManaged = false;
     delete process.env.MODEL_ROUTES;
     delete process.env.DEFAULT_MODEL;
+    delete process.env.OPENMAIC_SAAS_ENABLED;
   });
 
   it('throws (no hardcoded fallback) when nothing is configured', async () => {
@@ -244,6 +245,18 @@ describe('resolveModel — per-stage resolution order', () => {
     const { resolveModel } = await import('@/lib/server/resolve-model');
     const r = await resolveModel({ stage: 'scene-content', thinkingConfig: { effort: 'high' } });
     expect(r.thinkingConfig).toBeUndefined();
+  });
+
+  it('writes the SaaS outline without a long hidden reasoning pass', async () => {
+    process.env.OPENMAIC_SAAS_ENABLED = 'true';
+    process.env.DEFAULT_MODEL = 'deepseek:deepseek-v4-flash-vision-exp';
+    const { resolveModel } = await import('@/lib/server/resolve-model');
+    const r = await resolveModel({
+      stage: 'scene-outlines-stream',
+      thinkingConfig: { mode: 'enabled', effort: 'high' },
+    });
+    expect(r.thinkingConfig).toEqual({ mode: 'disabled', effort: 'none' });
+    delete process.env.OPENMAIC_SAAS_ENABLED;
   });
 
   it('unrouted stage keeps the client thinking config', async () => {
