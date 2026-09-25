@@ -48,6 +48,7 @@ const content: SlideContent = {
 };
 
 vi.mock('@/lib/config/feature-flags', () => ({
+  isSaasEnabled: () => false,
   isEditorRendererEnabled: () => state.rendererEnabled,
 }));
 

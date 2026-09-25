@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   isAgentRuntimeConfigured: vi.fn(() => true),
 }));
 vi.mock('@/lib/config/feature-flags', () => ({
+  isSaasEnabled: () => false,
   isAgentRuntimeEnabled: mocks.isAgentRuntimeEnabled,
   isAgentRuntimeConfigured: mocks.isAgentRuntimeEnabled,
 }));
