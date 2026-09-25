@@ -17,7 +17,7 @@ export interface BrandConfig {
   logoSrc: string;
   /** Whether `logoSrc` already carries the product wordmark. */
   logoHasWordmark: boolean;
-  /** Square brand mark under `public/` (favicon, workspace header). */
+  /** Square brand mark under `public/` (favicon, lockup). */
   markSrc: string;
   /** Browser theme color (`<meta name="theme-color">` / PWA). */
   themeColor: string;
@@ -25,10 +25,10 @@ export interface BrandConfig {
 
 /** The default brand: the product itself, with no vendor overrides. */
 export const DEFAULT_BRAND: BrandConfig = {
-  productName: 'OpenMAIC',
-  shortName: 'OpenMAIC',
+  productName: '明课',
+  shortName: '明课',
   logoSrc: '/logo-horizontal.png',
-  logoHasWordmark: true,
-  markSrc: '/openmaic-mark.png',
+  logoHasWordmark: false,
+  markSrc: '/mingke-mark.svg',
   themeColor: '#722ed1',
 };

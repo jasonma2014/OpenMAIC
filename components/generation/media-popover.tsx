@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { useSaasMode } from '@/components/saas/saas-mode';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/hooks/use-i18n';
 import { resolveASRProviderName } from '@/lib/audio/provider-display';
@@ -80,6 +81,7 @@ function providerModels<T extends { id: string; name: string }>(
 
 export function MediaPopover({ onSettingsOpen }: MediaPopoverProps) {
   const { t } = useI18n();
+  const platformManaged = useSaasMode();
   const [open, setOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<TabId>('image');
 
@@ -317,15 +319,17 @@ export function MediaPopover({ onSettingsOpen }: MediaPopoverProps) {
               enabled={imageGenerationEnabled}
               onToggle={setImageGenerationEnabled}
             >
-              <GroupedSelect
-                groups={imageGroups}
-                selectedGroupId={imageProviderId}
-                selectedItemId={imageModelId}
-                onSelect={(gid, iid) => {
-                  setImageProvider(gid as ImageProviderId);
-                  setImageModelId(iid);
-                }}
-              />
+              {!platformManaged && (
+                <GroupedSelect
+                  groups={imageGroups}
+                  selectedGroupId={imageProviderId}
+                  selectedItemId={imageModelId}
+                  onSelect={(gid, iid) => {
+                    setImageProvider(gid as ImageProviderId);
+                    setImageModelId(iid);
+                  }}
+                />
+              )}
             </TabPanel>
           )}
 
@@ -336,15 +340,17 @@ export function MediaPopover({ onSettingsOpen }: MediaPopoverProps) {
               enabled={videoGenerationEnabled}
               onToggle={setVideoGenerationEnabled}
             >
-              <GroupedSelect
-                groups={videoGroups}
-                selectedGroupId={videoProviderId}
-                selectedItemId={videoModelId}
-                onSelect={(gid, iid) => {
-                  setVideoProvider(gid as VideoProviderId);
-                  setVideoModelId(iid);
-                }}
-              />
+              {!platformManaged && (
+                <GroupedSelect
+                  groups={videoGroups}
+                  selectedGroupId={videoProviderId}
+                  selectedItemId={videoModelId}
+                  onSelect={(gid, iid) => {
+                    setVideoProvider(gid as VideoProviderId);
+                    setVideoModelId(iid);
+                  }}
+                />
+              )}
             </TabPanel>
           )}
 
@@ -364,32 +370,35 @@ export function MediaPopover({ onSettingsOpen }: MediaPopoverProps) {
               enabled={asrEnabled}
               onToggle={setASREnabled}
             >
-              <GroupedSelect
-                groups={asrGroups}
-                selectedGroupId={asrProviderId}
-                selectedItemId={asrLanguage}
-                onSelect={(gid, iid) => {
-                  setASRProvider(gid as ASRProviderId);
-                  setASRLanguage(iid);
-                }}
-              />
+              {!platformManaged && (
+                <GroupedSelect
+                  groups={asrGroups}
+                  selectedGroupId={asrProviderId}
+                  selectedItemId={asrLanguage}
+                  onSelect={(gid, iid) => {
+                    setASRProvider(gid as ASRProviderId);
+                    setASRLanguage(iid);
+                  }}
+                />
+              )}
             </TabPanel>
           )}
         </div>
 
-        {/* ── Footer ── */}
-        <div className="border-t border-border/40">
-          <button
-            onClick={() => {
-              setOpen(false);
-              onSettingsOpen(activeTab);
-            }}
-            className="w-full flex items-center justify-between px-3.5 py-2.5 text-[11px] text-muted-foreground/60 hover:text-muted-foreground transition-colors"
-          >
-            <span>{t('toolbar.advancedSettings')}</span>
-            <ChevronRight className="size-3" />
-          </button>
-        </div>
+        {!platformManaged && (
+          <div className="border-t border-border/40">
+            <button
+              onClick={() => {
+                setOpen(false);
+                onSettingsOpen(activeTab);
+              }}
+              className="w-full flex items-center justify-between px-3.5 py-2.5 text-[11px] text-muted-foreground/60 hover:text-muted-foreground transition-colors"
+            >
+              <span>{t('toolbar.advancedSettings')}</span>
+              <ChevronRight className="size-3" />
+            </button>
+          </div>
+        )}
       </PopoverContent>
     </Popover>
   );

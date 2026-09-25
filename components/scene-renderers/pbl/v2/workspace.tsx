@@ -12,7 +12,6 @@
  */
 
 import type { PBLMilestone, PBLProjectV2 } from '@/lib/pbl/v2/types';
-import Image from 'next/image';
 import { Maximize2, Workflow } from 'lucide-react';
 import {
   useCallback,
@@ -29,6 +28,7 @@ import { PBLV2RightPanelTabs } from './right-panel-tabs';
 import { shouldShowScenarioBriefing } from './scenario-briefing-gate';
 import { cn } from '@/lib/utils/cn';
 import { useI18n } from '@/lib/hooks/use-i18n';
+import { useBrand } from '@/lib/brand/brand-context';
 import type { CSSProperties } from 'react';
 import { runOneStream, type StreamDisplayState, type StreamStatus } from './use-instructor-stream';
 import type { PBLProjectPatch } from '@/lib/pbl/v2/api/sse';
@@ -431,6 +431,7 @@ function WorkspaceTopBar({
   readonly onExpand?: () => void;
 }) {
   const { t } = useI18n();
+  const brand = useBrand();
   return (
     <header
       className="relative z-40 col-span-full grid min-w-0 items-center overflow-hidden border-b border-cyan-100/[0.12] bg-[#111d35]/88 px-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.09),0_14px_42px_rgba(5,12,28,0.24)] backdrop-blur-xl"
@@ -441,13 +442,7 @@ function WorkspaceTopBar({
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(157,140,255,0.20),transparent_30%),radial-gradient(circle_at_78%_0%,rgba(34,211,238,0.13),transparent_26%),linear-gradient(90deg,rgba(255,255,255,0.05),transparent_34%,rgba(255,255,255,0.035))]" />
       <div className="relative flex min-w-0 flex-1 items-center gap-3">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-violet-200/25 bg-violet-100/[0.08] shadow-[0_0_24px_rgba(157,140,255,0.18)]">
-          <Image
-            src="/openmaic-mark.png"
-            alt="OpenMAIC"
-            width={28}
-            height={28}
-            className="h-6 w-6"
-          />
+          <img src={brand.markSrc} alt={brand.productName} className="h-6 w-6" />
         </div>
         <div className="min-w-0">
           <div className="flex items-center gap-2">

@@ -11,6 +11,15 @@
   },
   "home": {
     "slogan": "멀티 에이전트 인터랙티브 교실에서 펼치는 생성형 학습",
+    "guideTitle": "How a lesson is made",
+    "guideStep1Title": "Describe the lesson",
+    "guideStep1Body": "Write what this lesson should teach. You can also attach a textbook or slides.",
+    "guideStep2Title": "Check the price",
+    "guideStep2Body": "An estimate appears before generation. It starts only when the balance covers it.",
+    "guideStep3Title": "Confirm the outline",
+    "guideStep3Body": "The structure comes first. After you confirm it, each page gets an explanation, pictures, and narration.",
+    "guideStep4Title": "Listen, then publish",
+    "guideStep4Body": "Play the lesson once. When it sounds right, publish a class code. Students can only attend.",
     "greetingWithName": "안녕하세요, {{name}}!"
   },
   "toolbar": {
@@ -1871,7 +1880,7 @@
       "download": "다운로드",
       "detailFailed": "스킬 상세를 불러오지 못했습니다",
       "contentLabel": "내용",
-      "builtinDetailNote": "이 스킬은 OpenMAIC에 포함되어 있습니다. 다른 에이전트 작업공간으로 가져오려면 다운로드하세요.",
+      "builtinDetailNote": "이 스킬은 明课에 포함되어 있습니다. 다른 에이전트 작업공간으로 가져오려면 다운로드하세요.",
       "upload": "업로드",
       "uploading": "업로드 중…",
       "uploadFailed": "스킬을 업로드하지 못했습니다. 파일을 확인하고 다시 시도하세요.",

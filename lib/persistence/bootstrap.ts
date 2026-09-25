@@ -19,17 +19,45 @@ import {
 } from '@/lib/media/asset-pool-config';
 import { assertRuntimeStorageConfigurable, configureRuntimeStorage } from '@/lib/runtime/config';
 import { getLearnerKey } from '@/lib/runtime/learner-key';
+import { parseSaasSession } from '@/lib/saas/session-state';
 
 let deviceKv: BrowserKVStore | undefined;
 let learnerKeyPromise: Promise<string> | undefined;
 
+/** Set by the root layout before client modules run. Absent means SaaS is off. */
+export function isSaasBrowserEnabled(): boolean {
+  if (typeof window === 'undefined') return false;
+  return (window as Window & { __OPENMAIC_SAAS__?: boolean }).__OPENMAIC_SAAS__ === true;
+}
+
 export function isBrowserPersistenceEnabled(): boolean {
-  return typeof window !== 'undefined' && process.env.NEXT_PUBLIC_PERSISTENCE === '1';
+  return (
+    typeof window !== 'undefined' &&
+    (process.env.NEXT_PUBLIC_PERSISTENCE === '1' || isSaasBrowserEnabled())
+  );
+}
+
+async function saasUserLearnerKey(): Promise<string> {
+  const response = await fetch('/api/saas/session', { credentials: 'include', cache: 'no-store' });
+  const body = await response.json().catch(() => null);
+  const session = parseSaasSession(response.status, body);
+  if (session.status !== 'signed-in') {
+    throw new Error('SaaS runtime requires a signed-in user');
+  }
+  return session.account.userId;
 }
 
 export function getPersistenceLearnerKey(): Promise<string> {
   if (!isBrowserPersistenceEnabled()) {
     return Promise.reject(new Error('Browser persistence is not enabled'));
+  }
+  // The server binds runtime rows to the session user. An anonymous device key
+  // is a different partition, and the quiz page stays blank when that read is refused.
+  if (isSaasBrowserEnabled()) {
+    return (learnerKeyPromise ??= saasUserLearnerKey().catch((error) => {
+      learnerKeyPromise = undefined;
+      throw error;
+    }));
   }
   return (learnerKeyPromise ??= getLearnerKey((deviceKv ??= new BrowserKVStore())).catch(
     (error) => {
@@ -41,6 +69,8 @@ export function getPersistenceLearnerKey(): Promise<string> {
 
 export async function getPersistenceRequestHeaders(): Promise<Record<string, string>> {
   if (!isBrowserPersistenceEnabled()) return {};
+  // SaaS identity is the session cookie. A client learner key or dev token must not ride along.
+  if (isSaasBrowserEnabled()) return {};
   const resolvedLearnerKey = await getPersistenceLearnerKey();
   const token = process.env.NEXT_PUBLIC_PERSISTENCE_TOKEN;
   return {

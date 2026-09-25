@@ -17,6 +17,9 @@
  */
 
 import { NextRequest } from 'next/server';
+import { isSaasEnabled } from '@/lib/config/feature-flags';
+import { guardSaasAction, holdSaasOrg } from '@/lib/saas/guard';
+import { videoProviderForRequest } from '@/lib/saas/platform-providers';
 import { recordGenerationUsage } from '@/lib/server/usage-storage';
 import { generateVideo, normalizeVideoOptions } from '@/lib/media/video-providers';
 import {
@@ -25,7 +28,6 @@ import {
   resolveVideoApiKey,
   resolveVideoBaseUrl,
   resolveVideoModel,
-  resolveServerVideoProviderId,
 } from '@/lib/server/provider-config';
 import type { VideoProviderId, VideoGenerationOptions } from '@/lib/media/types';
 import { createLogger } from '@/lib/logger';
@@ -37,6 +39,8 @@ const log = createLogger('VideoGeneration API');
 export const maxDuration = 300;
 
 export async function POST(request: NextRequest) {
+  const blocked = holdSaasOrg(await guardSaasAction(request.headers, 'generate'));
+  if (blocked) return blocked;
   try {
     const body = (await request.json()) as VideoGenerationOptions;
 
@@ -46,8 +50,9 @@ export async function POST(request: NextRequest) {
 
     // The client may express no provider preference (empty header) — fall back
     // to the first server-configured video provider, else fail loud.
-    const providerId = (request.headers.get('x-video-provider')?.trim() ||
-      resolveServerVideoProviderId()) as VideoProviderId;
+    const providerId = videoProviderForRequest(
+      request.headers.get('x-video-provider'),
+    ) as VideoProviderId;
     if (!providerId) {
       return apiError('MISSING_PROVIDER', 400, 'No video provider configured');
     }
@@ -57,10 +62,12 @@ export async function POST(request: NextRequest) {
       return apiError('PROVIDER_DISABLED', 403, 'This video provider is disabled by the server');
     }
     // Managed providers are admin-owned: ignore any client-sent key/baseUrl.
-    const managed = isServerConfiguredProvider('video', providerId);
+    const managed = isSaasEnabled() || isServerConfiguredProvider('video', providerId);
     const clientApiKey = managed ? undefined : request.headers.get('x-api-key') || undefined;
     const clientBaseUrl = managed ? undefined : request.headers.get('x-base-url') || undefined;
-    const clientModel = request.headers.get('x-video-model')?.trim() || undefined;
+    const clientModel = isSaasEnabled()
+      ? undefined
+      : request.headers.get('x-video-model')?.trim() || undefined;
 
     if (clientBaseUrl) {
       const ssrfError = await validateUrlForSSRF(clientBaseUrl);

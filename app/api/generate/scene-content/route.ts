@@ -22,6 +22,7 @@ import type {
   UserRequirements,
 } from '@/lib/types/generation';
 import { createLogger } from '@/lib/logger';
+import { guardSaasAction, holdSaasOrg } from '@/lib/saas/guard';
 import { apiError, apiSuccess } from '@/lib/server/api-response';
 import { llmApiError } from '@/lib/server/llm-error-response';
 import { resolveModelFromRequest } from '@/lib/server/resolve-model';
@@ -57,6 +58,8 @@ const VISION_RESOLUTION_BUDGET_MS = 15_000;
 const MAX_CONSECUTIVE_UNRESOLVABLE_VISION_IMAGES = 3;
 
 export async function POST(req: NextRequest) {
+  const blocked = holdSaasOrg(await guardSaasAction(req.headers, 'generate'));
+  if (blocked) return blocked;
   let outlineTitle: string | undefined;
   let resolvedModelString: string | undefined;
   try {

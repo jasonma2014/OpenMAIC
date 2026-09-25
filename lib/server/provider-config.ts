@@ -8,6 +8,7 @@
 import fs from 'fs';
 import path from 'path';
 import yaml from 'js-yaml';
+import { isSaasEnabled } from '@/lib/config/feature-flags';
 import { createLogger } from '@/lib/logger';
 import {
   DEFAULT_QWEN_TTS_VOICE_CLONE_MODEL,
@@ -499,12 +500,54 @@ function applyBedrockProviderConfig(
   return providers;
 }
 
+const MINIMAX_SHARED_BASE_URL = 'https://api.minimaxi.com';
+
+function envModelList(prefix: string): string[] | undefined {
+  const raw = process.env[`${prefix}_MODELS`];
+  if (!raw) return undefined;
+  const parsed = raw
+    .split(',')
+    .map((model) => model.trim())
+    .filter(Boolean);
+  return parsed.length > 0 ? parsed : undefined;
+}
+
+/**
+ * The platform MiniMax key also covers speech, images, and Hailuo video when
+ * the dedicated key for that capability is empty. An explicit
+ * TTS_MINIMAX_API_KEY, IMAGE_MINIMAX_API_KEY, or VIDEO_MINIMAX_API_KEY still wins.
+ */
+function applySharedMinimaxKey(
+  section: Record<string, ServerProviderEntry>,
+  providerId: string,
+  dedicatedPrefix: string,
+  defaultModels: string[],
+): Record<string, ServerProviderEntry> {
+  const shared = process.env.MINIMAX_API_KEY?.trim();
+  if (!shared) return section;
+  const current = section[providerId];
+  if (current?.apiKey) return section;
+  const dedicatedBase = process.env[`${dedicatedPrefix}_BASE_URL`]?.trim();
+  section[providerId] = {
+    apiKey: shared,
+    baseUrl: current?.baseUrl || dedicatedBase || MINIMAX_SHARED_BASE_URL,
+    models: current?.models ?? envModelList(dedicatedPrefix) ?? defaultModels,
+    proxy: current?.proxy,
+  };
+  return section;
+}
+
 function buildConfig(yamlData: YamlData): ServerConfig {
-  const image = applyOpenAIImageFallback(
-    loadEnvSection(IMAGE_ENV_MAP, yamlData.image, {
-      keylessProviders: new Set(['lemonade']),
-    }),
-    yamlData.image,
+  const image = applySharedMinimaxKey(
+    applyOpenAIImageFallback(
+      loadEnvSection(IMAGE_ENV_MAP, yamlData.image, {
+        keylessProviders: new Set(['lemonade']),
+      }),
+      yamlData.image,
+    ),
+    'minimax-image',
+    'IMAGE_MINIMAX',
+    ['image-01'],
   );
   const providers = applyBedrockProviderConfig(
     loadEnvSection(LLM_ENV_MAP, yamlData.providers, {
@@ -513,11 +556,16 @@ function buildConfig(yamlData: YamlData): ServerConfig {
     yamlData.providers,
   );
 
-  return {
+  return omitOpenAIProviders({
     providers,
-    tts: loadEnvSection(TTS_ENV_MAP, yamlData.tts, {
-      keylessProviders: new Set(['voxcpm-tts', 'lemonade-tts']),
-    }),
+    tts: applySharedMinimaxKey(
+      loadEnvSection(TTS_ENV_MAP, yamlData.tts, {
+        keylessProviders: new Set(['voxcpm-tts', 'lemonade-tts']),
+      }),
+      'minimax-tts',
+      'TTS_MINIMAX',
+      ['speech-2.8-turbo'],
+    ),
     asr: loadEnvSection(ASR_ENV_MAP, yamlData.asr, {
       keylessProviders: new Set(['funasr-asr', 'lemonade-asr']),
     }),
@@ -529,11 +577,32 @@ function buildConfig(yamlData: YamlData): ServerConfig {
       yamlData.pdf,
     ),
     image,
-    video: loadEnvSection(VIDEO_ENV_MAP, yamlData.video),
+    video: applySharedMinimaxKey(
+      loadEnvSection(VIDEO_ENV_MAP, yamlData.video),
+      'minimax-video',
+      'VIDEO_MINIMAX',
+      ['MiniMax-Hailuo-2.3'],
+    ),
     webSearch: loadEnvSection(WEB_SEARCH_ENV_MAP, yamlData['web-search'], {
       keylessProviders: new Set(['brave', 'searxng']),
     }),
     disabled: collectDisabledProviders(yamlData),
+  });
+}
+
+const OPENAI_PROVIDER_IDS = new Set(['openai', 'openai-image', 'openai-tts', 'openai-whisper']);
+
+/** SaaS lessons use DeepSeek and MiniMax. OpenAI entries are not offered. */
+function omitOpenAIProviders(config: ServerConfig): ServerConfig {
+  if (!isSaasEnabled()) return config;
+  const drop = (section: Record<string, ServerProviderEntry>) =>
+    Object.fromEntries(Object.entries(section).filter(([id]) => !OPENAI_PROVIDER_IDS.has(id)));
+  return {
+    ...config,
+    providers: drop(config.providers),
+    tts: drop(config.tts),
+    asr: drop(config.asr),
+    image: drop(config.image),
   };
 }
 
@@ -870,8 +939,13 @@ export function resolveImageBaseUrl(
  * all (callers fail loud).
  */
 export function resolveServerImageProviderId(): string | undefined {
-  const disabled = getConfig().disabled.image;
-  return Object.keys(getConfig().image).find((id) => !disabled.has(id));
+  const cfg = getConfig();
+  const disabled = cfg.disabled.image;
+  const enabled = Object.keys(cfg.image).filter((id) => !disabled.has(id));
+  // A key-only fallback (OpenAI chat key reused for images) has no model. In
+  // SaaS the client cannot supply one, so that entry must not beat a provider
+  // that already names its model, such as MiniMax image-01.
+  return enabled.find((id) => (cfg.image[id]?.models?.length ?? 0) > 0) ?? enabled[0];
 }
 
 /**

@@ -11,6 +11,15 @@
   },
   "home": {
     "slogan": "多智能體互動課室中的生成式學習",
+    "guideTitle": "怎麼生成一節課",
+    "guideStep1Title": "寫下這節課",
+    "guideStep1Body": "用一兩句話說明要講什麼，也可以附上教材或課件。",
+    "guideStep2Title": "確認費用",
+    "guideStep2Body": "生成前會顯示這節課的預計費用。餘額夠，才開始生成。",
+    "guideStep3Title": "確認大綱",
+    "guideStep3Body": "先排出課程結構。確認之後，再寫出每一頁的講解、配圖和旁白。",
+    "guideStep4Title": "試聽後發布",
+    "guideStep4Body": "在課堂裡聽一遍。滿意後發布班級碼，學生憑碼上課。",
     "greetingWithName": "嗨，{{name}}"
   },
   "toolbar": {
@@ -1856,7 +1865,7 @@
       "download": "下載",
       "detailFailed": "技能詳情載入失敗",
       "contentLabel": "正文",
-      "builtinDetailNote": "該技能隨 OpenMAIC 提供。下載後可匯入其他智能體工作台。",
+      "builtinDetailNote": "該技能隨 明课 提供。下載後可匯入其他智能體工作台。",
       "upload": "上傳",
       "uploading": "正在上傳…",
       "uploadFailed": "技能上傳失敗。請檢查檔案後重試。",

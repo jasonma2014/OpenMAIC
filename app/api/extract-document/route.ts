@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { guardSaasAction, holdSaasOrg } from '@/lib/saas/guard';
+import { documentExtractConfigForRequest } from '@/lib/saas/platform-providers';
 import {
   isServerConfiguredProvider,
   resolveManagedAliDocMindCredentials,
@@ -438,6 +440,8 @@ async function runExtraction(
 }
 
 export async function POST(req: NextRequest) {
+  const blocked = holdSaasOrg(await guardSaasAction(req.headers, 'generate'));
+  if (blocked) return blocked;
   const logState: ExtractLogState = {};
   // Whether this request took the asset-id (JSON) form. The multipart byte
   // form's observable behavior is frozen; a few JSON-path-only responses use
@@ -631,7 +635,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    return await runExtraction(source, requestConfig, logState, isAssetIdForm);
+    return await runExtraction(
+      source,
+      documentExtractConfigForRequest(requestConfig),
+      logState,
+      isAssetIdForm,
+    );
   } catch (error) {
     log.error(
       `Document extraction failed [provider=${logState.resolvedProviderId ?? 'unknown'}, file="${sanitizeLogValue(

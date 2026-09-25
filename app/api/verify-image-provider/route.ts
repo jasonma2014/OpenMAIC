@@ -15,6 +15,7 @@
  */
 
 import { NextRequest } from 'next/server';
+import { isSaasEnabled } from '@/lib/config/feature-flags';
 import { IMAGE_PROVIDERS, testImageConnectivity } from '@/lib/media/image-providers';
 import {
   isServerConfiguredProvider,
@@ -37,6 +38,9 @@ const log = createLogger('VerifyImageProvider');
 export const maxDuration = 30;
 
 export async function POST(request: NextRequest) {
+  if (isSaasEnabled()) {
+    return apiError('INVALID_REQUEST', 403, 'Image providers are managed by the platform');
+  }
   try {
     const providerId = (request.headers.get('x-image-provider')?.trim() ||
       resolveServerImageProviderId()) as ImageProviderId;

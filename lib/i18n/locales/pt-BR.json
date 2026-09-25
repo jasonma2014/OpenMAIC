@@ -11,6 +11,15 @@
   },
   "home": {
     "slogan": "Aprendizagem Generativa em Sala de Aula Interativa Multi-Agente",
+    "guideTitle": "How a lesson is made",
+    "guideStep1Title": "Describe the lesson",
+    "guideStep1Body": "Write what this lesson should teach. You can also attach a textbook or slides.",
+    "guideStep2Title": "Check the price",
+    "guideStep2Body": "An estimate appears before generation. It starts only when the balance covers it.",
+    "guideStep3Title": "Confirm the outline",
+    "guideStep3Body": "The structure comes first. After you confirm it, each page gets an explanation, pictures, and narration.",
+    "guideStep4Title": "Listen, then publish",
+    "guideStep4Body": "Play the lesson once. When it sounds right, publish a class code. Students can only attend.",
     "greetingWithName": "Olá, {{name}}"
   },
   "toolbar": {
@@ -1871,7 +1880,7 @@
       "download": "Baixar",
       "detailFailed": "Não foi possível carregar os detalhes do skill",
       "contentLabel": "Conteúdo",
-      "builtinDetailNote": "Este skill acompanha o OpenMAIC. Baixe-o para importar em outro espaço de trabalho de agente.",
+      "builtinDetailNote": "Este skill acompanha o 明课. Baixe-o para importar em outro espaço de trabalho de agente.",
       "upload": "Enviar",
       "uploading": "Enviando…",
       "uploadFailed": "Não foi possível enviar o skill. Verifique o arquivo e tente novamente.",

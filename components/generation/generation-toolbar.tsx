@@ -40,6 +40,7 @@ import {
 } from '@/lib/ai/thinking-config';
 import type { SettingsSection } from '@/lib/types/settings';
 import { MediaPopover } from '@/components/generation/media-popover';
+import { useSaasMode } from '@/components/saas/saas-mode';
 import { getAcceptStringForProviders, isMimeSupportedByProviders } from '@/lib/document/mime';
 import {
   MAX_DOCUMENT_BUNDLE_FILES,
@@ -85,6 +86,7 @@ export function GenerationToolbar({
   materialsLocked = false,
 }: GenerationToolbarProps) {
   const { t } = useI18n();
+  const platformManaged = useSaasMode();
   const currentProviderId = useSettingsStore((s) => s.providerId);
   const currentModelId = useSettingsStore((s) => s.modelId);
   const providersConfig = useSettingsStore((s) => s.providersConfig);
@@ -229,43 +231,43 @@ export function GenerationToolbar({
 
   return (
     <div className="flex items-center gap-1 flex-wrap">
-      {/* ── Model selector ── */}
-      {configuredProviders.length > 0 ? (
-        <ModelSettingsPopover
-          configuredProviders={configuredProviders}
-          currentProviderId={currentProviderId}
-          currentModelId={currentModelId}
-          currentProviderConfig={currentProviderConfig}
-          currentModel={currentModel}
-          setModel={setModel}
-          thinkingConfig={currentThinkingConfig}
-          onThinkingChange={(config) =>
-            setThinkingConfig(currentProviderId, currentModelId, config)
-          }
-          t={t}
-        />
-      ) : (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              onClick={() => onSettingsOpen('providers')}
-              className={cn(
-                pillCls,
-                'text-amber-600 dark:text-amber-400 animate-pulse',
-                'bg-amber-50 dark:bg-amber-950/30 hover:bg-amber-100 dark:hover:bg-amber-950/50',
-              )}
-            >
-              <Bot className="size-3.5" />
-              <span>{t('toolbar.configureProvider')}</span>
-            </button>
-          </TooltipTrigger>
-          <TooltipContent>{t('toolbar.configureProviderHint')}</TooltipContent>
-        </Tooltip>
-      )}
+      {/* Model choice stays with the operator. Customers only see lesson features. */}
+      {!platformManaged &&
+        (configuredProviders.length > 0 ? (
+          <ModelSettingsPopover
+            configuredProviders={configuredProviders}
+            currentProviderId={currentProviderId}
+            currentModelId={currentModelId}
+            currentProviderConfig={currentProviderConfig}
+            currentModel={currentModel}
+            setModel={setModel}
+            thinkingConfig={currentThinkingConfig}
+            onThinkingChange={(config) =>
+              setThinkingConfig(currentProviderId, currentModelId, config)
+            }
+            t={t}
+          />
+        ) : (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => onSettingsOpen('providers')}
+                className={cn(
+                  pillCls,
+                  'text-amber-600 dark:text-amber-400 animate-pulse',
+                  'bg-amber-50 dark:bg-amber-950/30 hover:bg-amber-100 dark:hover:bg-amber-950/50',
+                )}
+              >
+                <Bot className="size-3.5" />
+                <span>{t('toolbar.configureProvider')}</span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>{t('toolbar.configureProviderHint')}</TooltipContent>
+          </Tooltip>
+        ))}
 
       <div className="flex min-w-0 items-center gap-1">
-        {/* ── Separator ── */}
-        <div className="w-px h-4 bg-border/60 mx-1" />
+        {!platformManaged && <div className="w-px h-4 bg-border/60 mx-1" />}
 
         {/* ── Course material (extractor + upload) combined Popover ── */}
         <Popover>
@@ -286,49 +288,55 @@ export function GenerationToolbar({
             )}
           </PopoverTrigger>
           <PopoverContent align="start" className="w-72 p-0">
-            {/* Extractor selector */}
-            <div className="flex items-center gap-2 px-3 pt-3 pb-2">
-              <span className="text-xs font-medium text-muted-foreground shrink-0">
-                {t('toolbar.documentExtractor')}
-              </span>
-              <Select
-                value={pdfProviderId}
-                onValueChange={(v) => setPDFProvider(v as PDFProviderId)}
-                disabled={materialsLocked}
-              >
-                <SelectTrigger className="h-7 text-xs flex-1 min-w-0">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.values(PDF_PROVIDERS).map((provider) => {
-                    const cfg = pdfProvidersConfig[provider.id];
-                    // AliDocMind authenticates with an AK/SK pair rather than a
-                    // single apiKey — recognize either credential shape.
-                    const hasCredentials =
-                      !!cfg?.apiKey || (!!cfg?.accessKeyId && !!cfg?.accessKeySecret);
-                    const available =
-                      !provider.requiresApiKey || hasCredentials || !!cfg?.isServerConfigured;
-                    return (
-                      <SelectItem key={provider.id} value={provider.id} disabled={!available}>
-                        <div
-                          className={cn('flex items-center gap-1.5', !available && 'opacity-50')}
-                        >
-                          {provider.icon && (
-                            <img src={provider.icon} alt={provider.name} className="w-3.5 h-3.5" />
-                          )}
-                          {provider.name}
-                          {cfg?.isServerConfigured && (
-                            <span className="text-[9px] px-1 py-0 rounded border text-muted-foreground">
-                              {t('settings.serverConfigured')}
-                            </span>
-                          )}
-                        </div>
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
-            </div>
+            {/* Extractor selector stays in the self-hosted build. */}
+            {!platformManaged && (
+              <div className="flex items-center gap-2 px-3 pt-3 pb-2">
+                <span className="text-xs font-medium text-muted-foreground shrink-0">
+                  {t('toolbar.documentExtractor')}
+                </span>
+                <Select
+                  value={pdfProviderId}
+                  onValueChange={(v) => setPDFProvider(v as PDFProviderId)}
+                  disabled={materialsLocked}
+                >
+                  <SelectTrigger className="h-7 text-xs flex-1 min-w-0">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.values(PDF_PROVIDERS).map((provider) => {
+                      const cfg = pdfProvidersConfig[provider.id];
+                      // AliDocMind authenticates with an AK/SK pair rather than a
+                      // single apiKey — recognize either credential shape.
+                      const hasCredentials =
+                        !!cfg?.apiKey || (!!cfg?.accessKeyId && !!cfg?.accessKeySecret);
+                      const available =
+                        !provider.requiresApiKey || hasCredentials || !!cfg?.isServerConfigured;
+                      return (
+                        <SelectItem key={provider.id} value={provider.id} disabled={!available}>
+                          <div
+                            className={cn('flex items-center gap-1.5', !available && 'opacity-50')}
+                          >
+                            {provider.icon && (
+                              <img
+                                src={provider.icon}
+                                alt={provider.name}
+                                className="w-3.5 h-3.5"
+                              />
+                            )}
+                            {provider.name}
+                            {cfg?.isServerConfigured && (
+                              <span className="text-[9px] px-1 py-0 rounded border text-muted-foreground">
+                                {t('settings.serverConfigured')}
+                              </span>
+                            )}
+                          </div>
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             {/* Upload area / file info */}
             <div className="px-3 pb-3">
@@ -428,7 +436,19 @@ export function GenerationToolbar({
         </Popover>
 
         {/* ── Web Search ── */}
-        {webSearchAvailable ? (
+        {platformManaged && webSearchAvailable ? (
+          <button
+            type="button"
+            className={webSearch ? pillActive : pillMuted}
+            disabled={materialsLocked || !selectedWebSearchAvailable}
+            onClick={() => {
+              if (!selectedWebSearchAvailable || materialsLocked) return;
+              onWebSearchChange(!webSearch);
+            }}
+          >
+            <Globe2 className={cn('size-3.5', webSearch && 'animate-pulse')} />
+          </button>
+        ) : webSearchAvailable ? (
           <Popover>
             <PopoverTrigger asChild>
               <button className={webSearch ? pillActive : pillMuted}>

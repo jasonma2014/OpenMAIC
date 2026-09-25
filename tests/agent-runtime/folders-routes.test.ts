@@ -5,12 +5,17 @@ import { createFakeDocumentStore } from './_fake-document-store';
 
 const mocks = vi.hoisted(() => ({
   runtimeConfigured: true,
+  saasEnabled: false,
   resolveRequestOwnerId: vi.fn(),
   fakeStore: null as ReturnType<typeof createFakeDocumentStore> | null,
 }));
 
 vi.mock('@/lib/config/feature-flags', () => ({
   isAgentRuntimeConfigured: () => mocks.runtimeConfigured,
+  isSaasEnabled: () => mocks.saasEnabled,
+}));
+vi.mock('@/lib/saas/principal', () => ({
+  saasPrincipalFromHeaders: async () => ({ orgId: 'owner-1', role: 'teacher' }),
 }));
 vi.mock('@/lib/server/agent-runtime/owner', () => ({
   resolveRequestOwnerId: mocks.resolveRequestOwnerId,
@@ -37,6 +42,7 @@ const params = (id: string) => ({ params: Promise.resolve({ id }) });
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.runtimeConfigured = true;
+  mocks.saasEnabled = false;
   mocks.resolveRequestOwnerId.mockReturnValue('owner-1');
   mocks.fakeStore = createFakeDocumentStore();
 });
@@ -46,6 +52,16 @@ describe('GET /api/folders', () => {
     mocks.runtimeConfigured = false;
     const response = await GET(routeRequest('http://localhost/api/folders'));
     expect(response.status).toBe(404);
+  });
+
+  it('lists organization folders when SaaS is on and the agent runtime is off', async () => {
+    mocks.runtimeConfigured = false;
+    mocks.saasEnabled = true;
+    await mocks.fakeStore!.store.createFolder('folder-a', 'Math');
+    const response = await GET(routeRequest('http://localhost/api/folders'));
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { folders: Array<{ name: string }> };
+    expect(body.folders.map((folder) => folder.name)).toEqual(['Math']);
   });
 
   it('lists the caller’s folders with their owner key', async () => {

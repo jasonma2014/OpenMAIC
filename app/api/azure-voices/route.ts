@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import { isSaasEnabled } from '@/lib/config/feature-flags';
 import { createLogger } from '@/lib/logger';
 import { validateUrlForSSRF } from '@/lib/server/ssrf-guard';
 import { apiError, apiSuccess } from '@/lib/server/api-response';
@@ -11,6 +12,9 @@ export const maxDuration = 30;
  * Fetches available voices from Azure Speech Services
  */
 export async function POST(req: NextRequest) {
+  if (isSaasEnabled()) {
+    return apiError('INVALID_REQUEST', 403, 'Speech providers are managed by the platform');
+  }
   let baseUrl: string | undefined;
   try {
     const body = await req.json();

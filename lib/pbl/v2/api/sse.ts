@@ -11,6 +11,7 @@
  *      nginx) don't kill the connection during long LLM calls.
  */
 
+import { currentSaasOrgId, runWithSaasOrg } from '@/lib/saas/context';
 import type {
   PBLProjectV2,
   PBLChatMessage,
@@ -215,65 +216,68 @@ export function createSSEResponse(
   const heartbeatMs = options.heartbeatMs ?? 15_000;
   const signal = options.signal;
   const encoder = new TextEncoder();
+  const orgId = currentSaasOrgId();
 
   const stream = new ReadableStream<Uint8Array>({
-    async start(controller) {
-      let closed = false;
-      // eslint-disable-next-line prefer-const -- declared early for safeClose closure; single deferred assignment
-      let heartbeatHandle: ReturnType<typeof setInterval> | undefined;
+    start(controller) {
+      return runWithSaasOrg(orgId, async () => {
+        let closed = false;
+        // eslint-disable-next-line prefer-const -- declared early for safeClose closure; single deferred assignment
+        let heartbeatHandle: ReturnType<typeof setInterval> | undefined;
 
-      const safeClose = () => {
-        if (closed) return;
-        closed = true;
-        if (heartbeatHandle) clearInterval(heartbeatHandle);
-        if (signal) signal.removeEventListener('abort', onAbort);
-        try {
-          controller.close();
-        } catch {
-          /* already closed */
-        }
-      };
+        const safeClose = () => {
+          if (closed) return;
+          closed = true;
+          if (heartbeatHandle) clearInterval(heartbeatHandle);
+          if (signal) signal.removeEventListener('abort', onAbort);
+          try {
+            controller.close();
+          } catch {
+            /* already closed */
+          }
+        };
 
-      const onAbort = () => {
-        safeClose();
-      };
-      if (signal) {
-        if (signal.aborted) {
+        const onAbort = () => {
           safeClose();
-          return;
+        };
+        if (signal) {
+          if (signal.aborted) {
+            safeClose();
+            return;
+          }
+          signal.addEventListener('abort', onAbort, { once: true });
         }
-        signal.addEventListener('abort', onAbort, { once: true });
-      }
 
-      const enqueueText = (text: string) => {
-        if (closed) return;
+        const enqueueText = (text: string) => {
+          if (closed) return;
+          try {
+            controller.enqueue(encoder.encode(text));
+          } catch {
+            /* downstream closed */
+            safeClose();
+          }
+        };
+
+        heartbeatHandle = setInterval(() => enqueueText(HEARTBEAT), heartbeatMs);
+
         try {
-          controller.enqueue(encoder.encode(text));
-        } catch {
-          /* downstream closed */
+          for await (const event of generator) {
+            if (closed) break;
+            enqueueText(encodeEvent(event));
+          }
+        } catch (err) {
+          enqueueText(
+            encodeEvent({
+              type: 'error',
+              code: 'STREAM_ERROR',
+              message: err instanceof Error ? err.message : String(err),
+            }),
+          );
+          enqueueText(encodeEvent({ type: 'done' }));
+        } finally {
           safeClose();
         }
-      };
-
-      heartbeatHandle = setInterval(() => enqueueText(HEARTBEAT), heartbeatMs);
-
-      try {
-        for await (const event of generator) {
-          if (closed) break;
-          enqueueText(encodeEvent(event));
-        }
-      } catch (err) {
-        enqueueText(
-          encodeEvent({
-            type: 'error',
-            code: 'STREAM_ERROR',
-            message: err instanceof Error ? err.message : String(err),
-          }),
-        );
-        enqueueText(encodeEvent({ type: 'done' }));
-      } finally {
-        safeClose();
-      }
+      });
     },
   });
 

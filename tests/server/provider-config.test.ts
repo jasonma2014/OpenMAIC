@@ -643,6 +643,43 @@ pdf:
       expect(resolveServerImageProviderId()).toBe('seedream');
     });
 
+    it('prefers an image provider that has a model over a key-only OpenAI fallback', async () => {
+      vi.stubEnv('OPENAI_API_KEY', 'sk-openai');
+      vi.stubEnv('MINIMAX_API_KEY', 'sk-minimax');
+      const { resolveServerImageProviderId, resolveImageModel } =
+        await import('@/lib/server/provider-config');
+      expect(resolveServerImageProviderId()).toBe('minimax-image');
+      expect(resolveImageModel('minimax-image')).toBe('image-01');
+    });
+
+    it('drops OpenAI and keeps DeepSeek plus MiniMax while SaaS is on', async () => {
+      vi.stubEnv('OPENMAIC_SAAS_ENABLED', 'true');
+      vi.stubEnv('OPENAI_API_KEY', 'sk-openai');
+      vi.stubEnv('DEEPSEEK_API_KEY', 'sk-deepseek');
+      vi.stubEnv('MINIMAX_API_KEY', 'sk-minimax');
+      const {
+        getServerProviders,
+        getServerImageProviders,
+        getServerTTSProviders,
+        getServerVideoProviders,
+        resolveImageModel,
+        resolveTTSModel,
+        resolveVideoModel,
+      } = await import('@/lib/server/provider-config');
+      expect(getServerProviders().openai).toBeUndefined();
+      expect(getServerProviders().deepseek).toBeDefined();
+      expect(getServerImageProviders()['openai-image']).toBeUndefined();
+      expect(getServerImageProviders()['minimax-image']).toEqual({ models: ['image-01'] });
+      expect(resolveImageModel('minimax-image')).toBe('image-01');
+      expect(getServerTTSProviders()['openai-tts']).toBeUndefined();
+      expect(getServerTTSProviders()['minimax-tts']).toBeDefined();
+      expect(resolveTTSModel('minimax-tts')).toBe('speech-2.8-turbo');
+      expect(getServerVideoProviders()['minimax-video']).toEqual({
+        models: ['MiniMax-Hailuo-2.3'],
+      });
+      expect(resolveVideoModel('minimax-video')).toBe('MiniMax-Hailuo-2.3');
+    });
+
     it('returns undefined for the default image provider when none is configured', async () => {
       const { resolveServerImageProviderId } = await import('@/lib/server/provider-config');
       expect(resolveServerImageProviderId()).toBeUndefined();
@@ -796,6 +833,48 @@ video:
       const { isServerTTSProviderDisabled } = await import('@/lib/server/provider-config');
       expect(isServerTTSProviderDisabled('openai-tts')).toBe(true);
       expect(isServerTTSProviderDisabled('qwen-tts')).toBe(false);
+    });
+  });
+
+  describe('shared MiniMax key', () => {
+    it('fills TTS, image, and Hailuo video from MINIMAX_API_KEY when the dedicated keys are empty', async () => {
+      vi.stubEnv('MINIMAX_API_KEY', 'shared-minimax');
+      vi.stubEnv('TTS_MINIMAX_BASE_URL', 'https://api.minimaxi.com');
+      const {
+        getServerTTSProviders,
+        getServerImageProviders,
+        getServerVideoProviders,
+        resolveServerVideoProviderId,
+        resolveTTSApiKey,
+        resolveTTSModel,
+        resolveVideoApiKey,
+        resolveVideoModel,
+      } = await import('@/lib/server/provider-config');
+
+      expect(getServerTTSProviders()['minimax-tts']).toEqual({});
+      expect(getServerImageProviders()['minimax-image']).toEqual({ models: ['image-01'] });
+      expect(getServerVideoProviders()['minimax-video']).toEqual({
+        models: ['MiniMax-Hailuo-2.3'],
+      });
+      expect(resolveServerVideoProviderId()).toBe('minimax-video');
+      expect(resolveTTSApiKey('minimax-tts')).toBe('shared-minimax');
+      expect(resolveTTSModel('minimax-tts', 'speech-2.8-hd')).toBe('speech-2.8-turbo');
+      expect(resolveVideoApiKey('minimax-video')).toBe('shared-minimax');
+      expect(resolveVideoModel('minimax-video')).toBe('MiniMax-Hailuo-2.3');
+    });
+
+    it('keeps a dedicated video key ahead of the shared MiniMax key', async () => {
+      vi.stubEnv('MINIMAX_API_KEY', 'shared-minimax');
+      vi.stubEnv('VIDEO_MINIMAX_API_KEY', 'dedicated-video');
+      const { resolveVideoApiKey } = await import('@/lib/server/provider-config');
+      expect(resolveVideoApiKey('minimax-video')).toBe('dedicated-video');
+    });
+
+    it('keeps a dedicated TTS key ahead of the shared MiniMax key', async () => {
+      vi.stubEnv('MINIMAX_API_KEY', 'shared-minimax');
+      vi.stubEnv('TTS_MINIMAX_API_KEY', 'dedicated-tts');
+      const { resolveTTSApiKey } = await import('@/lib/server/provider-config');
+      expect(resolveTTSApiKey('minimax-tts')).toBe('dedicated-tts');
     });
   });
 

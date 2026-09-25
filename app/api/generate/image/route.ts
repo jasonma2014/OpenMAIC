@@ -16,6 +16,9 @@
  */
 
 import { NextRequest } from 'next/server';
+import { isSaasEnabled } from '@/lib/config/feature-flags';
+import { guardSaasAction, holdSaasOrg } from '@/lib/saas/guard';
+import { imageProviderForRequest } from '@/lib/saas/platform-providers';
 import { recordGenerationUsage } from '@/lib/server/usage-storage';
 import { generateImage, IMAGE_PROVIDERS } from '@/lib/media/image-providers';
 import {
@@ -24,7 +27,6 @@ import {
   resolveImageApiKey,
   resolveImageBaseUrl,
   resolveImageModel,
-  resolveServerImageProviderId,
 } from '@/lib/server/provider-config';
 import type { ImageProviderId, ImageGenerationOptions } from '@/lib/media/types';
 import { createLogger } from '@/lib/logger';
@@ -42,6 +44,8 @@ const log = createLogger('ImageGeneration API');
 export const maxDuration = 300;
 
 export async function POST(request: NextRequest) {
+  const blocked = holdSaasOrg(await guardSaasAction(request.headers, 'generate'));
+  if (blocked) return blocked;
   try {
     const body = (await request.json()) as ImageGenerationOptions;
 
@@ -49,10 +53,9 @@ export async function POST(request: NextRequest) {
       return apiError('MISSING_REQUIRED_FIELD', 400, 'Missing prompt');
     }
 
-    // The client may express no provider preference (empty header) — fall back
-    // to the first server-configured image provider, else fail loud.
-    const providerId = (request.headers.get('x-image-provider')?.trim() ||
-      resolveServerImageProviderId()) as ImageProviderId;
+    const providerId = imageProviderForRequest(
+      request.headers.get('x-image-provider'),
+    ) as ImageProviderId;
     if (!providerId) {
       return apiError('MISSING_PROVIDER', 400, 'No image provider configured');
     }
@@ -61,11 +64,13 @@ export async function POST(request: NextRequest) {
     if (isServerProviderDisabled('image', providerId)) {
       return apiError('PROVIDER_DISABLED', 403, 'This image provider is disabled by the server');
     }
-    // Managed providers are admin-owned: ignore any client-sent key/baseUrl.
-    const managed = isServerConfiguredProvider('image', providerId);
+    // Managed providers are admin-owned. SaaS never accepts a customer key.
+    const managed = isSaasEnabled() || isServerConfiguredProvider('image', providerId);
     const clientApiKey = managed ? undefined : request.headers.get('x-api-key') || undefined;
     const clientBaseUrl = managed ? undefined : request.headers.get('x-base-url') || undefined;
-    const clientModel = request.headers.get('x-image-model')?.trim() || undefined;
+    const clientModel = isSaasEnabled()
+      ? undefined
+      : request.headers.get('x-image-model')?.trim() || undefined;
 
     if (clientBaseUrl) {
       const ssrfError = await validateUrlForSSRF(clientBaseUrl);

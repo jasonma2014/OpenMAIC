@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import { isSaasEnabled } from '@/lib/config/feature-flags';
 import { createLogger } from '@/lib/logger';
 import { apiError, apiSuccess } from '@/lib/server/api-response';
 import { resolveModel } from '@/lib/server/resolve-model';
@@ -6,6 +7,9 @@ import { callLLM } from '@/lib/ai/llm';
 const log = createLogger('Verify Model');
 
 export async function POST(req: NextRequest) {
+  if (isSaasEnabled()) {
+    return apiError('INVALID_REQUEST', 403, 'Model verification is managed by the platform');
+  }
   let model: string | undefined;
   try {
     const body = await req.json();

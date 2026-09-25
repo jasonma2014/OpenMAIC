@@ -26,16 +26,19 @@ describe('SaaS provider quotes', () => {
     const at = new Date('2026-09-23T02:30:00.000Z');
     expect(isDeepSeekPeak(at)).toBe(true);
     expect(
-      quoteDeepSeek({ cacheHitTokens: 1_000_000, cacheMissTokens: 1_000_000, outputTokens: 1_000_000 }, at),
+      quoteDeepSeek(
+        { cacheHitTokens: 1_000_000, cacheMissTokens: 1_000_000, outputTokens: 1_000_000 },
+        at,
+      ),
     ).toBe(40 + 2_000 + 8_000);
   });
 
   it('bills DeepSeek evening generation at the off-peak rate', () => {
     const at = new Date('2026-09-23T12:30:00.000Z');
     expect(isDeepSeekPeak(at)).toBe(false);
-    expect(quoteDeepSeek({ cacheHitTokens: 0, cacheMissTokens: 500_000, outputTokens: 100_000 }, at)).toBe(
-      500 + 400,
-    );
+    expect(
+      quoteDeepSeek({ cacheHitTokens: 0, cacheMissTokens: 500_000, outputTokens: 100_000 }, at),
+    ).toBe(500 + 400);
   });
 
   it('prices MiniMax images, narration, and an optional video clip', () => {

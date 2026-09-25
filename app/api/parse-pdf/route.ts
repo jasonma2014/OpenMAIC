@@ -1,4 +1,7 @@
 import { NextRequest } from 'next/server';
+import { isSaasEnabled } from '@/lib/config/feature-flags';
+import { guardSaasAction, holdSaasOrg } from '@/lib/saas/guard';
+import { pdfProviderForRequest } from '@/lib/saas/platform-providers';
 import {
   isServerConfiguredProvider,
   resolvePDFApiKey,
@@ -13,6 +16,8 @@ import { validateUrlForSSRF } from '@/lib/server/ssrf-guard';
 const log = createLogger('Parse PDF');
 
 export async function POST(req: NextRequest) {
+  const blocked = holdSaasOrg(await guardSaasAction(req.headers, 'generate'));
+  if (blocked) return blocked;
   let pdfFileName: string | undefined;
   let resolvedProviderId: string | undefined;
   try {
@@ -37,12 +42,12 @@ export async function POST(req: NextRequest) {
     }
 
     // providerId is required from the client — no server-side store to fall back to
-    const effectiveProviderId = providerId || ('unpdf' as PDFProviderId);
+    const effectiveProviderId = pdfProviderForRequest(providerId) as PDFProviderId;
     pdfFileName = pdfFile?.name;
     resolvedProviderId = effectiveProviderId;
 
     // Managed providers are admin-owned: ignore any client-sent key/baseUrl.
-    const managed = isServerConfiguredProvider('pdf', effectiveProviderId);
+    const managed = isSaasEnabled() || isServerConfiguredProvider('pdf', effectiveProviderId);
     const clientBaseUrl = managed ? undefined : baseUrl || undefined;
     if (clientBaseUrl) {
       const ssrfError = await validateUrlForSSRF(clientBaseUrl);

@@ -8,6 +8,10 @@
  */
 
 import { NextRequest } from 'next/server';
+import { isSaasEnabled } from '@/lib/config/feature-flags';
+import { guardSaasAction, holdSaasOrg } from '@/lib/saas/guard';
+import { ttsProviderForRequest } from '@/lib/saas/platform-providers';
+import { minimaxBillingChars } from '@/lib/saas/pricing';
 import {
   generateTTS,
   QwenTTSError,
@@ -37,6 +41,8 @@ const log = createLogger('TTS API');
 export const maxDuration = 30;
 
 export async function POST(req: NextRequest) {
+  const blocked = holdSaasOrg(await guardSaasAction(req.headers, 'play'));
+  if (blocked) return blocked;
   let ttsProviderId: string | undefined;
   let ttsVoice: string | undefined;
   let audioId: string | undefined;
@@ -53,7 +59,7 @@ export async function POST(req: NextRequest) {
       ttsBaseUrl?: string;
       ttsProviderOptions?: Record<string, unknown>;
     };
-    ttsProviderId = body.ttsProviderId;
+    ttsProviderId = ttsProviderForRequest(body.ttsProviderId);
     ttsVoice = typeof body.ttsVoice === 'string' ? body.ttsVoice.trim() : undefined;
     audioId = body.audioId;
 
@@ -97,7 +103,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Managed providers are admin-owned: ignore any client-sent key/baseUrl.
-    const managed = isServerConfiguredProvider('tts', ttsProviderId);
+    const managed = isSaasEnabled() || isServerConfiguredProvider('tts', ttsProviderId);
     const clientBaseUrl = managed ? undefined : ttsBaseUrl || undefined;
     // A client-supplied BYOK base URL always runs under the strict public
     // policy; only a server-managed (or built-in default) target may inherit the
@@ -130,7 +136,11 @@ export async function POST(req: NextRequest) {
     // Build TTS config (managed providers may pin the model server-side)
     const qwenCloneVoice = ttsProviderId === 'qwen-tts' && isQwenCloneVoice(ttsVoice);
     const requestedSpeed = ttsSpeed ?? 1.0;
-    const resolvedModelId = resolveTTSModel(ttsProviderId, ttsModelId, ttsVoice);
+    const resolvedModelId = resolveTTSModel(
+      ttsProviderId,
+      isSaasEnabled() ? undefined : ttsModelId,
+      ttsVoice,
+    );
     const config = {
       providerId: ttsProviderId as TTSProviderId,
       modelId: resolvedModelId,
@@ -158,7 +168,7 @@ export async function POST(req: NextRequest) {
       unit: 'character',
       providerId: ttsProviderId,
       modelId: config.modelId,
-      quantity: text.length,
+      quantity: minimaxBillingChars(text),
     });
 
     // Convert to base64

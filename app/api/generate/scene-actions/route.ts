@@ -7,6 +7,7 @@
  */
 
 import { NextRequest } from 'next/server';
+import { guardSaasAction, holdSaasOrg } from '@/lib/saas/guard';
 import { callLLM } from '@/lib/ai/llm';
 import {
   generateSceneActions,
@@ -35,6 +36,8 @@ const log = createLogger('Scene Actions API');
 export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
+  const blocked = holdSaasOrg(await guardSaasAction(req.headers, 'generate'));
+  if (blocked) return blocked;
   let outlineTitle: string | undefined;
   let resolvedModelString: string | undefined;
   try {

@@ -48,4 +48,12 @@ CREATE TABLE IF NOT EXISTS saas_ledger (
   retail_milli_yuan bigint NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now()
 );
+
+CREATE TABLE IF NOT EXISTS saas_classes (
+  code text PRIMARY KEY,
+  org_id text NOT NULL REFERENCES saas_orgs(id),
+  stage_id text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (org_id, stage_id)
+);
 `;

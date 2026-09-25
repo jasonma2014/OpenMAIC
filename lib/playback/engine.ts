@@ -87,6 +87,9 @@ export class PlaybackEngine {
   private browserTTSChunkIndex: number = 0; // current chunk being spoken
   private browserTTSPausedChunks: string[] = []; // remaining chunks saved on pause (for cancel+re-speak)
   private speechTimerRemaining: number = 0; // remaining ms (set on pause)
+  // True while a missing narration clip is being synthesized. Pause rewinds
+  // the cursor so resume speaks the same line instead of skipping it.
+  private serverNarrationPending = false;
   private playbackGeneration: number = 0;
 
   constructor(
@@ -215,6 +218,10 @@ export class PlaybackEngine {
   /** playing → paused | live → paused (abort SSE, truncate, topic pending) */
   pause(): void {
     if (this.mode === 'playing') {
+      if (this.serverNarrationPending && !this.audioPlayer.isPlaying()) {
+        this.actionIndex = Math.max(0, this.actionIndex - 1);
+        this.serverNarrationPending = false;
+      }
       this.invalidatePlaybackGeneration();
       // Cancel pending timers
       if (this.triggerDelayTimer) {
@@ -618,27 +625,29 @@ export class PlaybackEngine {
           // The legacy URL of an unconverted pair rides along as the
           // fallback of last resort; converted documents carry no audioUrl.
           .play(speechAction.audioId || '', (speechAction as LegacySpeechAction).audioUrl)
-          .then((audioStarted) => {
+          .then(async (audioStarted) => {
             if (!this.isCurrentGeneration(generation)) return;
-            if (!audioStarted) {
-              // No pre-generated audio — try browser-native TTS only when it is
-              // the selected provider AND actually enabled (opt-in, #665).
-              const settings = useSettingsStore.getState();
-              if (
-                hasText &&
-                settings.ttsEnabled &&
-                settings.ttsProviderId === 'browser-native-tts' &&
-                isTTSProviderEnabled(
-                  'browser-native-tts',
-                  settings.ttsProvidersConfig?.['browser-native-tts'],
-                ) &&
-                typeof window !== 'undefined' &&
-                window.speechSynthesis
-              ) {
-                this.playBrowserTTS(speechAction, generation);
-              } else {
-                scheduleReadingTimer();
-              }
+            if (audioStarted) return;
+            const synthesized = await this.synthesizeMissingNarration(speechAction, generation);
+            if (!this.isCurrentGeneration(generation)) return;
+            if (synthesized) return;
+            // No pre-generated audio — try browser-native TTS only when it is
+            // the selected provider AND actually enabled (opt-in, #665).
+            const settings = useSettingsStore.getState();
+            if (
+              hasText &&
+              settings.ttsEnabled &&
+              settings.ttsProviderId === 'browser-native-tts' &&
+              isTTSProviderEnabled(
+                'browser-native-tts',
+                settings.ttsProvidersConfig?.['browser-native-tts'],
+              ) &&
+              typeof window !== 'undefined' &&
+              window.speechSynthesis
+            ) {
+              this.playBrowserTTS(speechAction, generation);
+            } else {
+              scheduleReadingTimer();
             }
           })
           .catch((err) => {
@@ -759,6 +768,71 @@ export class PlaybackEngine {
     // instead of speaking an empty utterance that never fires onend). Otherwise
     // the text had no sentence punctuation — speak it as one chunk.
     return text.trim() ? [text] : [];
+  }
+
+  /**
+   * Speak a line that was saved without audio. Platform TTS writes the clip,
+   * then playback uses that clip. The scene is updated in place so the
+   * classroom player is not rebuilt mid-sentence.
+   */
+  private async synthesizeMissingNarration(
+    speechAction: SpeechAction,
+    generation: number,
+  ): Promise<boolean> {
+    if (!speechAction.text.trim()) return false;
+    const settings = useSettingsStore.getState();
+    const providerId = settings.ttsProviderId;
+    if (
+      !settings.ttsEnabled ||
+      !providerId ||
+      providerId === 'browser-native-tts' ||
+      !isTTSProviderEnabled(providerId, settings.ttsProvidersConfig?.[providerId])
+    ) {
+      return false;
+    }
+
+    const scene = this.scenes[this.sceneIndex];
+    this.serverNarrationPending = true;
+    try {
+      const { generateAndStoreTTS } = await import('@/lib/hooks/use-scene-generator');
+      const requestId = speechAction.audioId || `tts_${scene?.id ?? 'scene'}_${speechAction.id}`;
+      const stored = await generateAndStoreTTS(
+        requestId,
+        speechAction.text,
+        undefined,
+        undefined,
+        undefined,
+        speechAction.audioId,
+        scene?.stageId,
+      );
+      if (!stored || !this.isCurrentGeneration(generation)) return false;
+      speechAction.audioId = stored;
+      await this.rememberNarration(scene, speechAction.id, stored);
+      if (!this.isCurrentGeneration(generation) || this.mode !== 'playing') return false;
+      this.serverNarrationPending = false;
+      return await this.audioPlayer.play(stored);
+    } catch (err) {
+      if (!this.isCurrentGeneration(generation)) return false;
+      log.error('Live narration failed:', err);
+      return false;
+    } finally {
+      this.serverNarrationPending = false;
+    }
+  }
+
+  private async rememberNarration(
+    scene: Scene | undefined,
+    actionId: string,
+    audioId: string,
+  ): Promise<void> {
+    if (!scene) return;
+    const { useStageStore, markStagePersistenceDirty } = await import('@/lib/store/stage');
+    const live = useStageStore.getState().getSceneById(scene.id);
+    const liveAction = live?.actions?.find((action) => action.id === actionId);
+    if (liveAction && liveAction.type === 'speech' && liveAction.audioId !== audioId) {
+      liveAction.audioId = audioId;
+    }
+    markStagePersistenceDirty([{ kind: 'scene', sceneId: scene.id }]);
   }
 
   /**

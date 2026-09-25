@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/hooks/use-i18n';
+import { refreshBalanceAfterSpend } from '@/lib/saas/use-saas-session';
 import { getCurrentModelConfig } from '@/lib/utils/model-config';
 import { createLogger } from '@/lib/logger';
 
@@ -119,6 +120,7 @@ async function gradeShortAnswerQuestion(
       }),
     });
 
+    refreshBalanceAfterSpend();
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = (await res.json()) as { score: number; comment: string };
     const earned = Math.max(0, Math.min(pts, data.score));

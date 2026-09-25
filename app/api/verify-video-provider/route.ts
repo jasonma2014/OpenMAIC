@@ -15,6 +15,7 @@
  */
 
 import { NextRequest } from 'next/server';
+import { isSaasEnabled } from '@/lib/config/feature-flags';
 import { testVideoConnectivity } from '@/lib/media/video-providers';
 import {
   isServerConfiguredProvider,
@@ -32,6 +33,9 @@ import { validateUrlForSSRF } from '@/lib/server/ssrf-guard';
 const log = createLogger('VerifyVideoProvider');
 
 export async function POST(request: NextRequest) {
+  if (isSaasEnabled()) {
+    return apiError('INVALID_REQUEST', 403, 'Video providers are managed by the platform');
+  }
   try {
     const providerId = (request.headers.get('x-video-provider')?.trim() ||
       resolveServerVideoProviderId()) as VideoProviderId;

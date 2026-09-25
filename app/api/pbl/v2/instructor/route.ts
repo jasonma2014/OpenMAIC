@@ -17,6 +17,7 @@ import type { NextRequest } from 'next/server';
 
 import { createLogger } from '@/lib/logger';
 import { apiError } from '@/lib/server/api-response';
+import { guardSaasAction, holdSaasOrg } from '@/lib/saas/guard';
 import { resolveModelFromRequest } from '@/lib/server/resolve-model';
 
 import { createSSEResponse } from '@/lib/pbl/v2/api/sse';
@@ -36,6 +37,8 @@ interface InstructorRequest {
 }
 
 export async function POST(req: NextRequest) {
+  const blocked = holdSaasOrg(await guardSaasAction(req.headers, 'play'));
+  if (blocked) return blocked;
   let body: InstructorRequest;
   try {
     body = (await req.json()) as InstructorRequest;

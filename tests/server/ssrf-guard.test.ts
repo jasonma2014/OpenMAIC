@@ -403,14 +403,10 @@ describe('validateUrlForSSRF', () => {
 
     const { validateUrlForSSRF } = await import('@/lib/server/ssrf-guard');
 
-    for (const url of [
-      'http://240.0.0.1/',
-      'http://198.18.0.1/',
-      'http://224.0.0.1/',
-      'http://255.255.255.255/',
-    ]) {
+    for (const url of ['http://240.0.0.1/', 'http://224.0.0.1/', 'http://255.255.255.255/']) {
       await expect(validateUrlForSSRF(url)).resolves.toBe(PRIVATE_NETWORK_BLOCK_MESSAGE);
     }
+    await expect(validateUrlForSSRF('http://198.18.0.1/')).resolves.toBeNull();
     expect(lookupMock).not.toHaveBeenCalled();
 
     lookupMock.mockResolvedValue([{ address: '240.0.0.1', family: 4 }]);
@@ -714,10 +710,14 @@ describe('connectionAddressBlockReason', () => {
   it('matches validateUrlForSSRF for reserved/multicast ranges, opt-in or not', async () => {
     const { connectionAddressBlockReason } = await import('@/lib/server/ssrf-guard');
 
-    for (const address of ['240.0.0.1', '198.18.0.1', '224.0.0.1', '255.255.255.255']) {
+    for (const address of ['240.0.0.1', '224.0.0.1', '255.255.255.255']) {
       expect(connectionAddressBlockReason(address, false)).toBe(PRIVATE_NETWORK_BLOCK_MESSAGE);
       expect(connectionAddressBlockReason(address, true)).toBe(PRIVATE_NETWORK_BLOCK_MESSAGE);
     }
+    // 198.18.0.0/15 is the fake-ip block local TUN proxies assign. The opt-in
+    // allows it, the same way it allows CGNAT overlays.
+    expect(connectionAddressBlockReason('198.18.0.1', false)).toBe(PRIVATE_NETWORK_BLOCK_MESSAGE);
+    expect(connectionAddressBlockReason('198.18.0.1', true)).toBeNull();
   });
 
   it('governs CGNAT addresses by the opt-in and keeps metadata blocked with the flag', async () => {

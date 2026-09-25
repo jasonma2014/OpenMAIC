@@ -66,6 +66,8 @@ import { AddAudioProviderDialog, type NewAudioProviderData } from './add-audio-p
 import { isCustomTTSProvider, isCustomASRProvider } from '@/lib/audio/types';
 import { resolveASRProviderName, resolveTTSProviderName } from '@/lib/audio/provider-display';
 import type { SettingsSection, EditingModel } from '@/lib/types/settings';
+import { useSaasMode } from '@/components/saas/saas-mode';
+import { visibleSettingsSection } from '@/lib/saas/settings-sections';
 
 // ─── Provider List Column (reusable) ───
 function ProviderListColumn<T extends string>({
@@ -207,6 +209,7 @@ interface SettingsDialogProps {
 
 export function SettingsDialog({ open, onOpenChange, initialSection }: SettingsDialogProps) {
   const { t } = useI18n();
+  const platformManaged = useSaasMode();
 
   // Get settings from store
   const providerId = useSettingsStore((state) => state.providerId);
@@ -233,6 +236,7 @@ export function SettingsDialog({ open, onOpenChange, initialSection }: SettingsD
 
   // Navigation
   const [activeSection, setActiveSection] = useState<SettingsSection>('providers');
+  const shownSection = visibleSettingsSection(activeSection, platformManaged);
   const [selectedProviderId, setSelectedProviderId] = useState<ProviderId>(providerId);
   const [selectedPdfProviderId, setSelectedPdfProviderId] = useState<PDFProviderId>(pdfProviderId);
   const [selectedWebSearchProviderId, setSelectedWebSearchProviderId] =
@@ -559,11 +563,11 @@ export function SettingsDialog({ open, onOpenChange, initialSection }: SettingsD
     'video',
     'tts',
     'asr',
-  ].includes(activeSection);
+  ].includes(shownSection);
 
   // Get header content based on section
   const getHeaderContent = () => {
-    switch (activeSection) {
+    switch (shownSection) {
       case 'general':
         return <h2 className="text-lg font-semibold">{t('settings.systemSettings')}</h2>;
       case 'skills':
@@ -752,115 +756,122 @@ export function SettingsDialog({ open, onOpenChange, initialSection }: SettingsD
         <div className="flex h-full overflow-hidden">
           {/* Left Sidebar - Navigation */}
           <div className="flex-shrink-0 bg-muted/30 p-3 space-y-1" style={{ width: sidebarWidth }}>
-            <button
-              onClick={() => setActiveSection('token-plan')}
-              className={cn(
-                'w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-colors text-left min-w-0',
-                activeSection === 'token-plan'
-                  ? 'bg-primary/10 text-primary font-medium'
-                  : 'hover:bg-muted',
-              )}
-            >
-              <CreditCard className="h-4 w-4 shrink-0" />
-              <span className="truncate">{t('settings.tokenPlan.nav')}</span>
-            </button>
+            {platformManaged ? (
+              <p className="px-3 py-2 text-xs text-muted-foreground">{t('saas.platformKeys')}</p>
+            ) : null}
+            {!platformManaged && (
+              <>
+                <button
+                  onClick={() => setActiveSection('token-plan')}
+                  className={cn(
+                    'w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-colors text-left min-w-0',
+                    shownSection === 'token-plan'
+                      ? 'bg-primary/10 text-primary font-medium'
+                      : 'hover:bg-muted',
+                  )}
+                >
+                  <CreditCard className="h-4 w-4 shrink-0" />
+                  <span className="truncate">{t('settings.tokenPlan.nav')}</span>
+                </button>
 
-            <button
-              onClick={() => setActiveSection('providers')}
-              className={cn(
-                'w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-colors text-left min-w-0',
-                activeSection === 'providers'
-                  ? 'bg-primary/10 text-primary font-medium'
-                  : 'hover:bg-muted',
-              )}
-            >
-              <Box className="h-4 w-4 shrink-0" />
-              <span className="truncate">{t('settings.providers')}</span>
-            </button>
+                <button
+                  onClick={() => setActiveSection('providers')}
+                  className={cn(
+                    'w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-colors text-left min-w-0',
+                    shownSection === 'providers'
+                      ? 'bg-primary/10 text-primary font-medium'
+                      : 'hover:bg-muted',
+                  )}
+                >
+                  <Box className="h-4 w-4 shrink-0" />
+                  <span className="truncate">{t('settings.providers')}</span>
+                </button>
 
-            <button
-              onClick={() => setActiveSection('image')}
-              className={cn(
-                'w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-colors text-left min-w-0',
-                activeSection === 'image'
-                  ? 'bg-primary/10 text-primary font-medium'
-                  : 'hover:bg-muted',
-              )}
-            >
-              <ImageIcon className="h-4 w-4 shrink-0" />
-              <span className="truncate">{t('settings.imageSettings')}</span>
-            </button>
+                <button
+                  onClick={() => setActiveSection('image')}
+                  className={cn(
+                    'w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-colors text-left min-w-0',
+                    shownSection === 'image'
+                      ? 'bg-primary/10 text-primary font-medium'
+                      : 'hover:bg-muted',
+                  )}
+                >
+                  <ImageIcon className="h-4 w-4 shrink-0" />
+                  <span className="truncate">{t('settings.imageSettings')}</span>
+                </button>
 
-            <button
-              onClick={() => setActiveSection('video')}
-              className={cn(
-                'w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-colors text-left min-w-0',
-                activeSection === 'video'
-                  ? 'bg-primary/10 text-primary font-medium'
-                  : 'hover:bg-muted',
-              )}
-            >
-              <Film className="h-4 w-4 shrink-0" />
-              <span className="truncate">{t('settings.videoSettings')}</span>
-            </button>
+                <button
+                  onClick={() => setActiveSection('video')}
+                  className={cn(
+                    'w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-colors text-left min-w-0',
+                    shownSection === 'video'
+                      ? 'bg-primary/10 text-primary font-medium'
+                      : 'hover:bg-muted',
+                  )}
+                >
+                  <Film className="h-4 w-4 shrink-0" />
+                  <span className="truncate">{t('settings.videoSettings')}</span>
+                </button>
 
-            <button
-              onClick={() => setActiveSection('tts')}
-              className={cn(
-                'w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-colors text-left min-w-0',
-                activeSection === 'tts'
-                  ? 'bg-primary/10 text-primary font-medium'
-                  : 'hover:bg-muted',
-              )}
-            >
-              <Volume2 className="h-4 w-4 shrink-0" />
-              <span className="truncate">{t('settings.ttsSettings')}</span>
-            </button>
+                <button
+                  onClick={() => setActiveSection('tts')}
+                  className={cn(
+                    'w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-colors text-left min-w-0',
+                    shownSection === 'tts'
+                      ? 'bg-primary/10 text-primary font-medium'
+                      : 'hover:bg-muted',
+                  )}
+                >
+                  <Volume2 className="h-4 w-4 shrink-0" />
+                  <span className="truncate">{t('settings.ttsSettings')}</span>
+                </button>
 
-            <button
-              onClick={() => setActiveSection('asr')}
-              className={cn(
-                'w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-colors text-left min-w-0',
-                activeSection === 'asr'
-                  ? 'bg-primary/10 text-primary font-medium'
-                  : 'hover:bg-muted',
-              )}
-            >
-              <Mic className="h-4 w-4 shrink-0" />
-              <span className="truncate">{t('settings.asrSettings')}</span>
-            </button>
+                <button
+                  onClick={() => setActiveSection('asr')}
+                  className={cn(
+                    'w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-colors text-left min-w-0',
+                    shownSection === 'asr'
+                      ? 'bg-primary/10 text-primary font-medium'
+                      : 'hover:bg-muted',
+                  )}
+                >
+                  <Mic className="h-4 w-4 shrink-0" />
+                  <span className="truncate">{t('settings.asrSettings')}</span>
+                </button>
 
-            <button
-              onClick={() => setActiveSection('pdf')}
-              className={cn(
-                'w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-colors text-left min-w-0',
-                activeSection === 'pdf'
-                  ? 'bg-primary/10 text-primary font-medium'
-                  : 'hover:bg-muted',
-              )}
-            >
-              <FileText className="h-4 w-4 shrink-0" />
-              <span className="truncate">{t('settings.documentParsingSettings')}</span>
-            </button>
+                <button
+                  onClick={() => setActiveSection('pdf')}
+                  className={cn(
+                    'w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-colors text-left min-w-0',
+                    shownSection === 'pdf'
+                      ? 'bg-primary/10 text-primary font-medium'
+                      : 'hover:bg-muted',
+                  )}
+                >
+                  <FileText className="h-4 w-4 shrink-0" />
+                  <span className="truncate">{t('settings.documentParsingSettings')}</span>
+                </button>
 
-            <button
-              onClick={() => setActiveSection('web-search')}
-              className={cn(
-                'w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-colors text-left min-w-0',
-                activeSection === 'web-search'
-                  ? 'bg-primary/10 text-primary font-medium'
-                  : 'hover:bg-muted',
-              )}
-            >
-              <Search className="h-4 w-4 shrink-0" />
-              <span className="truncate">{t('settings.webSearchSettings')}</span>
-            </button>
+                <button
+                  onClick={() => setActiveSection('web-search')}
+                  className={cn(
+                    'w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-colors text-left min-w-0',
+                    shownSection === 'web-search'
+                      ? 'bg-primary/10 text-primary font-medium'
+                      : 'hover:bg-muted',
+                  )}
+                >
+                  <Search className="h-4 w-4 shrink-0" />
+                  <span className="truncate">{t('settings.webSearchSettings')}</span>
+                </button>
+              </>
+            )}
 
             <button
               onClick={() => setActiveSection('skills')}
               className={cn(
                 'w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-colors text-left min-w-0',
-                activeSection === 'skills'
+                shownSection === 'skills'
                   ? 'bg-primary/10 text-primary font-medium'
                   : 'hover:bg-muted',
               )}
@@ -873,7 +884,7 @@ export function SettingsDialog({ open, onOpenChange, initialSection }: SettingsD
               onClick={() => setActiveSection('general')}
               className={cn(
                 'w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-colors text-left min-w-0',
-                activeSection === 'general'
+                shownSection === 'general'
                   ? 'bg-primary/10 text-primary font-medium'
                   : 'hover:bg-muted',
               )}
@@ -892,7 +903,7 @@ export function SettingsDialog({ open, onOpenChange, initialSection }: SettingsD
           </div>
 
           {/* Middle - Provider List (only shown for provider-based sections) */}
-          {activeSection === 'providers' && (
+          {shownSection === 'providers' && (
             <>
               <ProviderList
                 providers={allProviders}
@@ -910,7 +921,7 @@ export function SettingsDialog({ open, onOpenChange, initialSection }: SettingsD
             </>
           )}
 
-          {activeSection === 'pdf' && (
+          {shownSection === 'pdf' && (
             <>
               <ProviderListColumn
                 providers={Object.values(PDF_PROVIDERS)}
@@ -929,7 +940,7 @@ export function SettingsDialog({ open, onOpenChange, initialSection }: SettingsD
             </>
           )}
 
-          {activeSection === 'web-search' && (
+          {shownSection === 'web-search' && (
             <>
               <ProviderListColumn
                 providers={Object.values(WEB_SEARCH_PROVIDERS).map((provider) => ({
@@ -951,7 +962,7 @@ export function SettingsDialog({ open, onOpenChange, initialSection }: SettingsD
             </>
           )}
 
-          {activeSection === 'image' && (
+          {shownSection === 'image' && (
             <>
               <ProviderListColumn
                 providers={Object.values(IMAGE_PROVIDERS).map((p) => ({
@@ -974,7 +985,7 @@ export function SettingsDialog({ open, onOpenChange, initialSection }: SettingsD
             </>
           )}
 
-          {activeSection === 'video' && (
+          {shownSection === 'video' && (
             <>
               <ProviderListColumn
                 providers={Object.values(VIDEO_PROVIDERS).map((p) => ({
@@ -997,7 +1008,7 @@ export function SettingsDialog({ open, onOpenChange, initialSection }: SettingsD
             </>
           )}
 
-          {activeSection === 'tts' && (
+          {shownSection === 'tts' && (
             <>
               <ProviderListColumn
                 providers={[
@@ -1030,7 +1041,7 @@ export function SettingsDialog({ open, onOpenChange, initialSection }: SettingsD
             </>
           )}
 
-          {activeSection === 'asr' && (
+          {shownSection === 'asr' && (
             <>
               <ProviderListColumn
                 providers={[
@@ -1069,7 +1080,7 @@ export function SettingsDialog({ open, onOpenChange, initialSection }: SettingsD
             <div className="flex items-center justify-between p-5 border-b">
               <div className="flex items-center gap-3">{getHeaderContent()}</div>
               <div className="flex items-center gap-2">
-                {activeSection === 'providers' &&
+                {shownSection === 'providers' &&
                   !providersConfig[selectedProviderId]?.isBuiltIn && (
                     <Button
                       variant="ghost"
@@ -1088,13 +1099,20 @@ export function SettingsDialog({ open, onOpenChange, initialSection }: SettingsD
 
             {/* Content */}
             <div className="flex-1 overflow-y-auto p-5">
-              {activeSection === 'general' && <GeneralSettings />}
+              {shownSection === 'general' && (
+                <>
+                  {platformManaged ? (
+                    <p className="mb-4 text-sm text-muted-foreground">{t('saas.platformKeys')}</p>
+                  ) : null}
+                  <GeneralSettings />
+                </>
+              )}
 
-              {activeSection === 'skills' && <SkillSettings />}
+              {shownSection === 'skills' && <SkillSettings />}
 
-              {activeSection === 'token-plan' && <TokenPlanSettings />}
+              {shownSection === 'token-plan' && <TokenPlanSettings />}
 
-              {activeSection === 'providers' && selectedProvider && (
+              {shownSection === 'providers' && selectedProvider && (
                 <ProviderConfigPanel
                   provider={selectedProvider}
                   initialApiKey={providersConfig[selectedProviderId]?.apiKey || ''}
@@ -1117,20 +1135,18 @@ export function SettingsDialog({ open, onOpenChange, initialSection }: SettingsD
                 />
               )}
 
-              {activeSection === 'pdf' && (
-                <PDFSettings selectedProviderId={selectedPdfProviderId} />
-              )}
-              {activeSection === 'web-search' && (
+              {shownSection === 'pdf' && <PDFSettings selectedProviderId={selectedPdfProviderId} />}
+              {shownSection === 'web-search' && (
                 <WebSearchSettings selectedProviderId={selectedWebSearchProviderId} />
               )}
-              {activeSection === 'image' && (
+              {shownSection === 'image' && (
                 <ImageSettings selectedProviderId={selectedImageProviderId} />
               )}
-              {activeSection === 'video' && (
+              {shownSection === 'video' && (
                 <VideoSettings selectedProviderId={selectedVideoProviderId} />
               )}
-              {activeSection === 'tts' && <TTSSettings selectedProviderId={ttsProviderId} />}
-              {activeSection === 'asr' && <ASRSettings selectedProviderId={asrProviderId} />}
+              {shownSection === 'tts' && <TTSSettings selectedProviderId={ttsProviderId} />}
+              {shownSection === 'asr' && <ASRSettings selectedProviderId={asrProviderId} />}
             </div>
 
             {/* Footer */}

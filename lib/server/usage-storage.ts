@@ -1,6 +1,8 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import { createLogger } from '@/lib/logger';
+import { isSaasEnabled } from '@/lib/config/feature-flags';
+import { billRecordedUsage } from '@/lib/saas/billing';
 import { hasBillableTokens, type NormalizedUsage } from '@/lib/usage/normalize';
 
 const log = createLogger('UsageStorage');
@@ -130,6 +132,7 @@ export async function recordUsage(
     const dir = usageDir(opts.baseDir);
     await fs.mkdir(dir, { recursive: true });
     await fs.appendFile(monthlyFile(dir, now), JSON.stringify(record) + '\n', 'utf-8');
+    if (isSaasEnabled()) await billRecordedUsage(record, now);
   } catch (err) {
     log.warn('Failed to record usage (ignored):', err);
   }

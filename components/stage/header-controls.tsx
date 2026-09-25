@@ -26,6 +26,7 @@ import { isVideoExportEnabled } from '@/lib/config/feature-flags';
 import { useVideoRenderStore } from '@/lib/store/video-render';
 import { CircularProgress } from '@/components/ui/circular-progress';
 import { VideoExportDialog } from './video-export-dialog';
+import { PublishClassButton } from '@/components/saas/publish-class-button';
 import { LanguageSwitcher } from '../language-switcher';
 import { SettingsDialog } from '../settings';
 import {
@@ -259,6 +260,8 @@ export function HeaderControls({
           />
         </label>
       )}
+
+      {showCourseActions ? <PublishClassButton /> : null}
 
       {/* Export / Download — lives to the right of the Pro Switch.
           Not a settings function so it does not belong inside the

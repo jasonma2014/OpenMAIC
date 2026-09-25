@@ -95,6 +95,52 @@ describe('persistence client bootstrap', () => {
     expect(assets.isAssetPoolStorageConfigured()).toBe(false);
   });
 
+  it('uses cookie-backed HTTP stores when the SaaS flag is on', async () => {
+    vi.stubEnv('NEXT_PUBLIC_PERSISTENCE', '');
+    vi.stubGlobal('window', { __OPENMAIC_SAAS__: true });
+    vi.stubGlobal('localStorage', memoryStorage());
+
+    const runtime = await import('@/lib/runtime/store');
+    const documents = await import('@/lib/document-store');
+    const assets = await import('@/lib/media/asset-pool-config');
+    expect(runtime.isRuntimeStorageConfigured()).toBe(true);
+    expect(documents.isDocumentStorageConfigured()).toBe(true);
+    expect(assets.isAssetPoolServerBacked()).toBe(true);
+
+    const headers = await (
+      documents.getDocumentStore() as unknown as {
+        headersHook: (context: { method: string; path: string }) => Promise<HeadersInit>;
+      }
+    ).headersHook({ method: 'GET', path: '/documents/lesson' });
+    const sent = new Headers(headers);
+    expect(sent.get('authorization')).toBeNull();
+    expect(sent.get('x-learner-key')).toBeNull();
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              userId: 'user-1',
+              email: 'a@b.c',
+              orgId: 'org-1',
+              orgName: '小码哥',
+              role: 'org_admin',
+              balanceMilliYuan: 1000,
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          ),
+      ),
+    );
+    const { getPersistenceLearnerKey } = await import('@/lib/persistence/bootstrap');
+    await expect(getPersistenceLearnerKey()).resolves.toBe('user-1');
+
+    runtime.resetRuntimeStorageForTests();
+    documents.resetDocumentStorageForTests();
+    assets.resetAssetPoolStorageForTests();
+  });
+
   it('leaves the asset pool on its browser default in browser-only mode', async () => {
     vi.stubEnv('NEXT_PUBLIC_PERSISTENCE', '');
     vi.stubGlobal('window', {});

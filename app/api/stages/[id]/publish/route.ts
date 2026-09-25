@@ -8,7 +8,11 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
-import { isAgentRuntimeConfigured } from '@/lib/config/feature-flags';
+import { isAgentRuntimeConfigured, isSaasEnabled } from '@/lib/config/feature-flags';
+import { ensureClassCode } from '@/lib/saas/classes';
+import { openSaasDb } from '@/lib/saas/db';
+import { saasPrincipalFromHeaders } from '@/lib/saas/principal';
+import { canPerform } from '@/lib/saas/roles';
 import { setStagePublished } from '@/lib/persistence/stage-meta';
 import { getStageAccessDb, resolveStageAccess } from '@/lib/server/stage-access';
 import { withRequestOwnerId } from '@/lib/server/agent-runtime/with-owner';
@@ -18,7 +22,8 @@ export const runtime = 'nodejs';
 type Params = { params: Promise<{ id: string }> };
 
 export async function POST(req: NextRequest, { params }: Params) {
-  if (!isAgentRuntimeConfigured()) return new Response('Not found', { status: 404 });
+  if (!isAgentRuntimeConfigured() && !isSaasEnabled())
+    return new Response('Not found', { status: 404 });
 
   return withRequestOwnerId(req, async (ownerId, responseHeaders) => {
     const { id: stageId } = await params;
@@ -30,6 +35,16 @@ export async function POST(req: NextRequest, { params }: Params) {
         );
       }
 
+      if (isSaasEnabled()) {
+        const principal = await saasPrincipalFromHeaders(req.headers);
+        if (!principal || principal.orgId !== ownerId || !canPerform(principal.role, 'publish')) {
+          return NextResponse.json(
+            { error: 'forbidden' },
+            { status: 403, headers: responseHeaders },
+          );
+        }
+      }
+
       const access = await resolveStageAccess(stageId);
       if (!access) {
         return NextResponse.json({ error: 'not_found' }, { status: 404, headers: responseHeaders });
@@ -39,8 +54,16 @@ export async function POST(req: NextRequest, { params }: Params) {
       }
 
       if (access.isPublic) {
+        const classCode = isSaasEnabled()
+          ? await ensureClassCode(await openSaasDb(), ownerId, stageId)
+          : undefined;
         return NextResponse.json(
-          { success: true, publishedAt: access.publishedAt, name: access.name },
+          {
+            success: true,
+            publishedAt: access.publishedAt,
+            name: access.name,
+            ...(classCode ? { classCode } : {}),
+          },
           { status: 200, headers: responseHeaders },
         );
       }
@@ -49,9 +72,12 @@ export async function POST(req: NextRequest, { params }: Params) {
       const db = await getStageAccessDb();
       await setStagePublished(db, stageId, true, publishedAt);
 
+      const classCode = isSaasEnabled()
+        ? await ensureClassCode(await openSaasDb(), ownerId, stageId)
+        : undefined;
       console.info('Stage published', { stageId, ownerId });
       return NextResponse.json(
-        { success: true, publishedAt, name: access.name },
+        { success: true, publishedAt, name: access.name, ...(classCode ? { classCode } : {}) },
         { status: 200, headers: responseHeaders },
       );
     } catch (error) {

@@ -1,3 +1,6 @@
+import { isSaasEnabled } from '@/lib/config/feature-flags';
+import { saasPrincipalFromHeaders } from '@/lib/saas/principal';
+
 import { resolveRequestOwnerId } from './owner';
 
 /**
@@ -14,6 +17,21 @@ export async function withRequestOwnerId(
   handler: (ownerId: string, responseHeaders: Headers) => Promise<Response>,
 ): Promise<Response> {
   const responseHeaders = new Headers();
+  if (isSaasEnabled()) {
+    try {
+      const principal = await saasPrincipalFromHeaders(req.headers);
+      if (!principal) {
+        return new Response(JSON.stringify({ error: 'login_required' }), {
+          status: 401,
+          headers: responseHeaders,
+        });
+      }
+      return await handler(principal.orgId, responseHeaders);
+    } catch (error) {
+      console.error('[saas] request failed under the organization session', error);
+      return new Response('Internal Server Error', { status: 500, headers: responseHeaders });
+    }
+  }
   const ownerId = resolveRequestOwnerId(req, responseHeaders);
   try {
     return await handler(ownerId, responseHeaders);

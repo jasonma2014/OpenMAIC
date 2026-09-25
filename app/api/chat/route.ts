@@ -18,6 +18,9 @@ import { isProviderKeyRequired } from '@/lib/ai/providers';
 import type { StatelessChatRequest, StatelessEvent } from '@/lib/types/chat';
 import { apiError } from '@/lib/server/api-response';
 import { createLogger } from '@/lib/logger';
+import { isSaasEnabled } from '@/lib/config/feature-flags';
+import { currentSaasOrgId, runWithSaasOrg } from '@/lib/saas/context';
+import { guardSaasAction, holdSaasOrg } from '@/lib/saas/guard';
 import { resolveModel } from '@/lib/server/resolve-model';
 import type { ThinkingConfig } from '@/lib/types/provider';
 const log = createLogger('Chat API');
@@ -42,6 +45,8 @@ export const maxDuration = 60;
  * Response: SSE stream of StatelessEvent
  */
 export async function POST(req: NextRequest) {
+  const blocked = holdSaasOrg(await guardSaasAction(req.headers, 'play'));
+  if (blocked) return blocked;
   const encoder = new TextEncoder();
   let chatModel: string | undefined;
   let chatMessageCount: number | undefined;
@@ -69,16 +74,23 @@ export async function POST(req: NextRequest) {
       apiKey: resolvedApiKey,
       providerId,
       thinkingConfig: resolvedThinking,
-    } = await resolveModel({
-      modelString: body.model,
-      stage: 'chat-adapter',
-      apiKey: body.apiKey,
-      baseUrl: body.baseUrl,
-      providerType: body.providerType,
-      // Let resolveModel arbitrate thinking too: a routed chat-adapter's thinking
-      // wins, an unrouted one honors this client thinking (see resolve-model.ts).
-      thinkingConfig: body.thinkingConfig ?? body.thinking,
-    });
+    } = await resolveModel(
+      isSaasEnabled()
+        ? {
+            stage: 'chat-adapter',
+            thinkingConfig: body.thinkingConfig ?? body.thinking,
+          }
+        : {
+            modelString: body.model,
+            stage: 'chat-adapter',
+            apiKey: body.apiKey,
+            baseUrl: body.baseUrl,
+            providerType: body.providerType,
+            // Let resolveModel arbitrate thinking too: a routed chat-adapter's thinking
+            // wins, an unrouted one honors this client thinking (see resolve-model.ts).
+            thinkingConfig: body.thinkingConfig ?? body.thinking,
+          },
+    );
 
     if (isProviderKeyRequired(providerId) && !resolvedApiKey) {
       return apiError('MISSING_API_KEY', 401, 'API Key is required');
@@ -98,7 +110,7 @@ export async function POST(req: NextRequest) {
 
     // Stream generation in background with heartbeat to prevent connection timeout
     const HEARTBEAT_INTERVAL_MS = 15_000;
-    (async () => {
+    void runWithSaasOrg(currentSaasOrgId(), async () => {
       // Heartbeat: periodically send SSE comments to keep the connection alive.
       // Proxies / browsers may close idle SSE connections after 30-120s of silence.
       let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
@@ -184,7 +196,7 @@ export async function POST(req: NextRequest) {
           // Writer may already be closed
         }
       }
-    })();
+    });
 
     return new Response(readable, {
       headers: {

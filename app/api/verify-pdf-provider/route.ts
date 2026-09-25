@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import { isSaasEnabled } from '@/lib/config/feature-flags';
 import { createLogger } from '@/lib/logger';
 import { apiError, apiSuccess } from '@/lib/server/api-response';
 import {
@@ -13,6 +14,9 @@ import { MINERU_CLOUD_DEFAULT_BASE } from '@/lib/pdf/constants';
 const log = createLogger('Verify PDF Provider');
 
 export async function POST(req: NextRequest) {
+  if (isSaasEnabled()) {
+    return apiError('INVALID_REQUEST', 403, 'Document providers are managed by the platform');
+  }
   let providerId: string | undefined;
   try {
     const body = await req.json();

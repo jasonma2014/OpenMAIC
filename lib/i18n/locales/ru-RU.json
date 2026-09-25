@@ -11,6 +11,15 @@
   },
   "home": {
     "slogan": "Generative Learning in Multi-Agent Interactive Classroom",
+    "guideTitle": "How a lesson is made",
+    "guideStep1Title": "Describe the lesson",
+    "guideStep1Body": "Write what this lesson should teach. You can also attach a textbook or slides.",
+    "guideStep2Title": "Check the price",
+    "guideStep2Body": "An estimate appears before generation. It starts only when the balance covers it.",
+    "guideStep3Title": "Confirm the outline",
+    "guideStep3Body": "The structure comes first. After you confirm it, each page gets an explanation, pictures, and narration.",
+    "guideStep4Title": "Listen, then publish",
+    "guideStep4Body": "Play the lesson once. When it sounds right, publish a class code. Students can only attend.",
     "greetingWithName": "Привет, {{name}}"
   },
   "toolbar": {
@@ -1871,7 +1880,7 @@
       "download": "Скачать",
       "detailFailed": "Не удалось загрузить сведения о навыке",
       "contentLabel": "Содержимое",
-      "builtinDetailNote": "Этот навык поставляется с OpenMAIC. Скачайте его, чтобы импортировать в другое рабочее пространство агента.",
+      "builtinDetailNote": "Этот навык поставляется с 明课. Скачайте его, чтобы импортировать в другое рабочее пространство агента.",
       "upload": "Загрузить",
       "uploading": "Загрузка…",
       "uploadFailed": "Не удалось загрузить навык. Проверьте файл и повторите попытку.",

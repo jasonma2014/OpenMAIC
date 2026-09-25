@@ -6,6 +6,8 @@
  */
 
 import { NextRequest } from 'next/server';
+import { isSaasEnabled } from '@/lib/config/feature-flags';
+import { guardSaasAction, holdSaasOrg } from '@/lib/saas/guard';
 import { callLLM } from '@/lib/ai/llm';
 import { formatSearchResultsAsContext, searchWeb } from '@/lib/web-search';
 import {
@@ -30,6 +32,8 @@ import { resolveWebSearchRouteBaseUrl } from '@/lib/server/web-search-config';
 const log = createLogger('WebSearch');
 
 export async function POST(req: NextRequest) {
+  const blocked = holdSaasOrg(await guardSaasAction(req.headers, 'generate'));
+  if (blocked) return blocked;
   let query: string | undefined;
   try {
     const body = await req.json();
@@ -57,10 +61,15 @@ export async function POST(req: NextRequest) {
     }
 
     const serverProviderId = resolveServerWebSearchProviderId() as WebSearchProviderId | undefined;
+    if (isSaasEnabled() && !serverProviderId) {
+      return apiError('MISSING_API_KEY', 400, 'Web search is not configured on the platform.');
+    }
     let providerId: WebSearchProviderId =
-      requestProviderId && WEB_SEARCH_PROVIDERS[requestProviderId]
-        ? requestProviderId
-        : (serverProviderId ?? 'tavily');
+      isSaasEnabled() && serverProviderId
+        ? serverProviderId
+        : requestProviderId && WEB_SEARCH_PROVIDERS[requestProviderId]
+          ? requestProviderId
+          : (serverProviderId ?? 'tavily');
 
     // Prefer the operator's server-configured backend over stale client defaults
     // (e.g. Tavily without a key, or Brave HTML scrape with empty results).
@@ -92,7 +101,7 @@ export async function POST(req: NextRequest) {
     // Managed providers are admin-owned: ignore (don't reject) any client-sent
     // key/baseUrl. The server config is authoritative, so a stale client base
     // URL is dropped rather than failing the request.
-    const managed = isServerConfiguredProvider('webSearch', providerId);
+    const managed = isSaasEnabled() || isServerConfiguredProvider('webSearch', providerId);
     const clientApiKey = managed ? undefined : bodyApiKey;
     // SearXNG base URLs are operator-managed only (SEARXNG_BASE_URL); never trust client input.
     const clientBaseUrl = managed || providerId === 'searxng' ? undefined : bodyBaseUrl;

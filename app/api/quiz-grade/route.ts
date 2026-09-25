@@ -9,6 +9,7 @@ import { NextRequest } from 'next/server';
 import { callLLM } from '@/lib/ai/llm';
 import { createLogger } from '@/lib/logger';
 import { apiError, apiSuccess } from '@/lib/server/api-response';
+import { guardSaasAction, holdSaasOrg } from '@/lib/saas/guard';
 import { resolveModelFromRequest } from '@/lib/server/resolve-model';
 const log = createLogger('Quiz Grade');
 
@@ -26,6 +27,8 @@ interface GradeResponse {
 }
 
 export async function POST(req: NextRequest) {
+  const blocked = holdSaasOrg(await guardSaasAction(req.headers, 'play'));
+  if (blocked) return blocked;
   let questionSnippet: string | undefined;
   let resolvedPoints: number | undefined;
   try {

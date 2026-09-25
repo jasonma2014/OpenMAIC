@@ -47,6 +47,7 @@ import type { PBLProjectV2 } from '@/lib/pbl/v2/types';
 import type { PBLSSEEvent } from '@/lib/pbl/v2/api/sse';
 import { trackSubmissionScore } from '@/lib/pbl/v2/operations/runtime/dynamic-signals';
 import { normalizeProjectRuntime } from '@/lib/pbl/v2/operations/kernel/progress';
+import { refreshBalanceAfterSpend } from '@/lib/saas/use-saas-session';
 import { getCurrentModelConfig } from '@/lib/utils/model-config';
 import { createLogger } from '@/lib/logger';
 import { applyInstructorEvent } from './apply-instructor-event';
@@ -348,6 +349,7 @@ export async function runOneStream(args: OneStreamArgs): Promise<PBLProjectV2> {
     }
     return workingProject;
   } finally {
+    refreshBalanceAfterSpend();
     reader.cancel().catch(() => {
       // Reader already closed; ignore.
     });

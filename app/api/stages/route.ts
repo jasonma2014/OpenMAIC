@@ -16,7 +16,10 @@
 import type { NextRequest } from 'next/server';
 import { randomBytes } from 'node:crypto';
 
-import { isAgentRuntimeConfigured } from '@/lib/config/feature-flags';
+import { isAgentRuntimeConfigured, isSaasEnabled } from '@/lib/config/feature-flags';
+import { saasPrincipalFromHeaders } from '@/lib/saas/principal';
+import { stagesVisibleToRole } from '@/lib/saas/student-access';
+import { getStageAccessDb } from '@/lib/server/stage-access';
 import type { AppDocumentOutline } from '@/lib/document-store/persistence-types';
 import { apiError } from '@/lib/server/api-response';
 import { getOwnerScopedDocumentStore } from '@/lib/server/agent-runtime/owner-scoped-documents';
@@ -33,12 +36,28 @@ function createStageId(): string {
 
 // GET /api/stages — list every stage document owned by the caller.
 export async function GET(req: NextRequest) {
-  if (!isAgentRuntimeConfigured()) return new Response('Not found', { status: 404 });
+  if (!isAgentRuntimeConfigured() && !isSaasEnabled())
+    return new Response('Not found', { status: 404 });
 
   return withRequestOwnerId(req, async (ownerId, responseHeaders) => {
     const store = await getOwnerScopedDocumentStore(ownerId);
-    const stages = await store.listDocuments();
-    return ownerJson({ stages }, 200, responseHeaders);
+    const listed = await store.listDocuments();
+    if (!isSaasEnabled()) return ownerJson({ stages: listed }, 200, responseHeaders);
+    const principal = await saasPrincipalFromHeaders(req.headers);
+    if (principal?.role !== 'student') return ownerJson({ stages: listed }, 200, responseHeaders);
+    const result = await getStageAccessDb().then((db) =>
+      db.query<{ stage_id: string }>(
+        `SELECT stage_id FROM stage_meta
+          WHERE owner_id = $1 AND is_public = true AND deleted_at IS NULL`,
+        [ownerId],
+      ),
+    );
+    const publicStageIds = new Set(result.rows.map((row) => row.stage_id));
+    return ownerJson(
+      { stages: stagesVisibleToRole(listed, principal.role, publicStageIds) },
+      200,
+      responseHeaders,
+    );
   });
 }
 

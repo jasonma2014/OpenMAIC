@@ -12,6 +12,7 @@ import {
   isPiChatEnabled,
   isPiNativeChildRuntimeEnabled,
   isPiNativeChildSpotlightEnabled,
+  isSaasEnabled,
 } from '@/lib/config/feature-flags';
 import { createLogger } from '@/lib/logger';
 import {
@@ -21,6 +22,8 @@ import {
 } from '@/lib/chat/pi/config';
 import { runPiDirectorLoop } from '@/lib/chat/pi/director-loop';
 import type { SendEvent } from '@/lib/chat/pi/types';
+import { currentSaasOrgId, runWithSaasOrg } from '@/lib/saas/context';
+import { guardSaasAction, holdSaasOrg } from '@/lib/saas/guard';
 import { resolveModel } from '@/lib/server/resolve-model';
 import { apiError } from '@/lib/server/api-response';
 import type { ThinkingConfig } from '@/lib/types/provider';
@@ -44,6 +47,8 @@ export async function POST(req: NextRequest) {
   if (!isPiChatEnabled()) {
     return apiError('INVALID_REQUEST', 404, 'Pi chat runtime is disabled');
   }
+  const blocked = holdSaasOrg(await guardSaasAction(req.headers, 'play'));
+  if (blocked) return blocked;
 
   const encoder = new TextEncoder();
   let chatModel: string | undefined;
@@ -100,16 +105,23 @@ export async function POST(req: NextRequest) {
       providerId,
       modelInfo,
       thinkingConfig: resolvedThinkingConfig,
-    } = await resolveModel({
-      modelString: body.model,
-      stage: 'chat-adapter',
-      apiKey: body.apiKey,
-      baseUrl: body.baseUrl,
-      providerType: body.providerType,
-      // Let resolveModel arbitrate thinking too: a routed chat-adapter's thinking
-      // wins, an unrouted one honors this client thinking (see resolve-model.ts).
-      thinkingConfig: body.thinkingConfig ?? body.thinking,
-    });
+    } = await resolveModel(
+      isSaasEnabled()
+        ? {
+            stage: 'chat-adapter',
+            thinkingConfig: body.thinkingConfig ?? body.thinking,
+          }
+        : {
+            modelString: body.model,
+            stage: 'chat-adapter',
+            apiKey: body.apiKey,
+            baseUrl: body.baseUrl,
+            providerType: body.providerType,
+            // Let resolveModel arbitrate thinking too: a routed chat-adapter's thinking
+            // wins, an unrouted one honors this client thinking (see resolve-model.ts).
+            thinkingConfig: body.thinkingConfig ?? body.thinking,
+          },
+    );
 
     if (isProviderKeyRequired(providerId) && !resolvedApiKey) {
       return apiError('MISSING_API_KEY', 401, 'API Key is required');
@@ -211,7 +223,7 @@ export async function POST(req: NextRequest) {
       `Pi request agents=${body.config.agentIds.join(', ')} messages=${body.messages.length} maxAgentTurns=${maxAgentTurns}`,
     );
 
-    (async () => {
+    void runWithSaasOrg(currentSaasOrgId(), async () => {
       let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
       const startHeartbeat = () => {
         heartbeatTimer = setInterval(() => {
@@ -286,7 +298,7 @@ export async function POST(req: NextRequest) {
           /* writer may already be closed */
         }
       }
-    })();
+    });
 
     return new Response(readable, {
       headers: {

@@ -17,14 +17,7 @@ export type SaasAction =
   | 'configure_providers';
 
 const GRANTS: Record<SaasRole, ReadonlySet<SaasAction>> = {
-  org_admin: new Set([
-    'play',
-    'generate',
-    'edit',
-    'publish',
-    'manage_members',
-    'manage_billing',
-  ]),
+  org_admin: new Set(['play', 'generate', 'edit', 'publish', 'manage_members', 'manage_billing']),
   teacher: new Set(['play', 'generate', 'edit', 'publish']),
   student: new Set(['play']),
 };

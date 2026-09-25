@@ -1,4 +1,7 @@
 import { NextRequest } from 'next/server';
+import { isSaasEnabled } from '@/lib/config/feature-flags';
+import { guardSaasAction, holdSaasOrg } from '@/lib/saas/guard';
+import { asrProviderForRequest } from '@/lib/saas/platform-providers';
 import { transcribeAudio } from '@/lib/audio/asr-providers';
 import {
   isServerConfiguredProvider,
@@ -6,7 +9,6 @@ import {
   resolveASRApiKey,
   resolveASRBaseUrl,
   resolveASRModel,
-  resolveServerASRProviderId,
 } from '@/lib/server/provider-config';
 import type { ASRProviderId } from '@/lib/audio/types';
 import { createLogger } from '@/lib/logger';
@@ -17,6 +19,8 @@ const log = createLogger('Transcription');
 export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
+  const blocked = holdSaasOrg(await guardSaasAction(req.headers, 'play'));
+  if (blocked) return blocked;
   let resolvedProviderId: string | undefined;
   let resolvedModelId: string | undefined;
   try {
@@ -37,8 +41,7 @@ export async function POST(req: NextRequest) {
 
     // Prefer an enabled operator-configured backend when the client omitted its
     // selection. Never guess a vendor: fail loudly when no backend is enabled.
-    const effectiveProviderId =
-      providerId || (resolveServerASRProviderId() as ASRProviderId | undefined);
+    const effectiveProviderId = asrProviderForRequest(providerId) as ASRProviderId | undefined;
     if (!effectiveProviderId) {
       return apiError('MISSING_PROVIDER', 400, 'No enabled ASR provider is configured');
     }
@@ -52,7 +55,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Managed providers are admin-owned: ignore any client-sent key/baseUrl.
-    const managed = isServerConfiguredProvider('asr', effectiveProviderId);
+    const managed = isSaasEnabled() || isServerConfiguredProvider('asr', effectiveProviderId);
     const clientBaseUrl = managed ? undefined : baseUrl || undefined;
     // A client-supplied BYOK base URL is always judged under the strict public
     // policy, even when the operator enabled local networks for their own

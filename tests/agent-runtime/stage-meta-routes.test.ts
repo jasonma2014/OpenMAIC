@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/lib/config/feature-flags', () => ({
   isAgentRuntimeConfigured: () => mocks.runtimeConfigured,
   isServerPersistenceConfigured: () => mocks.persistenceConfigured,
+  isSaasEnabled: () => false,
 }));
 vi.mock('@/lib/server/agent-runtime/owner', () => ({
   resolveRequestOwnerId: mocks.resolveRequestOwnerId,

@@ -1,5 +1,7 @@
 import { after, type NextRequest } from 'next/server';
 import { nanoid } from 'nanoid';
+import { currentSaasOrgId, runWithSaasOrg } from '@/lib/saas/context';
+import { guardSaasAction, holdSaasOrg } from '@/lib/saas/guard';
 import { apiError, apiSuccess } from '@/lib/server/api-response';
 import { type GenerateClassroomInput } from '@/lib/server/classroom-generation';
 import { runClassroomGenerationJob } from '@/lib/server/classroom-job-runner';
@@ -27,6 +29,8 @@ function isValidPdfContent(value: unknown): value is PdfContent {
 }
 
 export async function POST(req: NextRequest) {
+  const blocked = holdSaasOrg(await guardSaasAction(req.headers, 'generate'));
+  if (blocked) return blocked;
   let requirementSnippet: string | undefined;
   try {
     const rawBody = (await req.json()) as Partial<GenerateClassroomInput>;
@@ -70,7 +74,8 @@ export async function POST(req: NextRequest) {
     const job = await createClassroomGenerationJob(jobId, body);
     const pollUrl = `${baseUrl}/api/generate-classroom/${jobId}`;
 
-    after(() => runClassroomGenerationJob(jobId, body, baseUrl));
+    const orgId = currentSaasOrgId();
+    after(() => runWithSaasOrg(orgId, () => runClassroomGenerationJob(jobId, body, baseUrl)));
 
     return apiSuccess(
       {

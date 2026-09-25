@@ -10,7 +10,16 @@
     "close": "Close"
   },
   "home": {
-    "slogan": "Generative Learning in Multi-Agent Interactive Classroom",
+    "slogan": "A clear lesson for every classroom.",
+    "guideTitle": "How a lesson is made",
+    "guideStep1Title": "Describe the lesson",
+    "guideStep1Body": "Write what this lesson should teach. You can also attach a textbook or slides.",
+    "guideStep2Title": "Check the price",
+    "guideStep2Body": "An estimate appears before generation. It starts only when the balance covers it.",
+    "guideStep3Title": "Confirm the outline",
+    "guideStep3Body": "The structure comes first. After you confirm it, each page gets an explanation, pictures, and narration.",
+    "guideStep4Title": "Listen, then publish",
+    "guideStep4Body": "Play the lesson once. When it sounds right, publish a class code. Students can only attend.",
     "greetingWithName": "Hi, {{name}}"
   },
   "toolbar": {
@@ -1871,7 +1880,7 @@
       "download": "Download",
       "detailFailed": "Could not load the skill details",
       "contentLabel": "Content",
-      "builtinDetailNote": "This skill ships with OpenMAIC. Download it to import into another agent workspace.",
+      "builtinDetailNote": "This skill ships with 明课. Download it to import into another agent workspace.",
       "upload": "Upload",
       "uploading": "Uploading…",
       "uploadFailed": "Could not upload the skill. Check the file and try again.",
@@ -2024,6 +2033,41 @@
     "badgeExit": "Back to classic",
     "launchPlaceholder": "Describe the learning experience you want to create",
     "launchSend": "Start build"
+  },
+  "saas": {
+    "loginTitle": "Sign in",
+    "loginHint": "Use your organization email",
+    "loginSubmit": "Sign in",
+    "registerTitle": "Create organization",
+    "registerHint": "You become the organization admin",
+    "registerSubmit": "Create and sign in",
+    "joinTitle": "Join a class",
+    "joinHint": "Enter the class code from your teacher",
+    "joinSubmit": "Enter class",
+    "orgName": "Organization name",
+    "email": "Email",
+    "password": "Password, at least 8 characters",
+    "classCode": "Class code",
+    "signOut": "Sign out",
+    "failed": "That did not work. Check the form and try again.",
+    "signedOutHome": "Sign in to generate and publish. Students join with a class code.",
+    "studentHome": "Use a class code to open a published lesson.",
+    "publish": "Publish class",
+    "publishFailed": "Publish did not succeed",
+    "classCodeReady": "Class code",
+    "classCodeHint": "Share this 8-character code. Students can only attend.",
+    "copy": "Copy",
+    "copied": "Copied",
+    "platformKeys": "The platform holds model keys. This screen does not accept provider secrets.",
+    "quote": "This lesson is estimated at ¥{{price}}. Balance ¥{{balance}}.",
+    "quoteShort": "Balance ¥{{balance}} does not cover the ¥{{price}} estimate for this lesson.",
+    "quoteFailed": "The price estimate is unavailable. Try again shortly.",
+    "insufficient": "The balance does not cover the estimate for this lesson.",
+    "role": {
+      "org_admin": "Admin",
+      "teacher": "Teacher",
+      "student": "Student"
+    }
   },
   "accessCode": {
     "title": "Enter Access Code",

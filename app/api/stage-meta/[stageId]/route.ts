@@ -24,7 +24,9 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
-import { isServerPersistenceConfigured } from '@/lib/config/feature-flags';
+import { isSaasEnabled, isServerPersistenceConfigured } from '@/lib/config/feature-flags';
+import { saasPrincipalFromHeaders } from '@/lib/saas/principal';
+import { viewerOwnsCourse } from '@/lib/saas/student-access';
 import { resolveStageAccess } from '@/lib/server/stage-access';
 import { withRequestOwnerId } from '@/lib/server/agent-runtime/with-owner';
 
@@ -60,7 +62,10 @@ export async function GET(req: NextRequest, { params }: Params) {
       // ONLY owner signal, so a `true` here must mean every write through the
       // owner-bound store will be accepted (the store re-checks the owner
       // scope inside its write transactions).
-      const isOwner = access.ownerId === ownerId;
+      const role = isSaasEnabled()
+        ? (await saasPrincipalFromHeaders(req.headers))?.role
+        : undefined;
+      const isOwner = viewerOwnsCourse(access.ownerId === ownerId, role);
 
       return NextResponse.json(
         {

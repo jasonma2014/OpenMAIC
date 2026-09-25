@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef, useDeferredValue } from 'react';
+import { useState, useEffect, useMemo, useRef, useDeferredValue, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -82,11 +82,19 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { useDraftCache } from '@/lib/hooks/use-draft-cache';
 import { SpeechButton } from '@/components/audio/speech-button';
 import { useImportClassroom } from '@/lib/import/use-import-classroom';
+import { SaasAccountMenu } from '@/components/saas/account-menu';
+import { LessonQuote } from '@/components/saas/lesson-quote';
+import { SaasEntryCard } from '@/components/saas/entry-card';
+import { BrandLockup } from '@/components/brand/brand-lockup';
+import { GenerationGuide } from '@/components/home/generation-guide';
+import { useBrand } from '@/lib/brand/brand-context';
+import { useSaasMode } from '@/components/saas/saas-mode';
 import {
   isProWorkbenchEnabled,
   isPptxImportEnabled,
   shouldShowVocationalTestUi,
 } from '@/lib/config/feature-flags';
+import { useSaasSession } from '@/lib/saas/use-saas-session';
 import { useImportPptx } from '@/lib/import/use-import-pptx';
 import { InteractiveModeButton } from '@/components/generation/interactive-mode-button';
 import { ProBadge } from '@/components/workbench/ProBadge';
@@ -128,6 +136,15 @@ const initialFormState: FormState = {
 
 function HomePage() {
   const { t } = useI18n();
+  const brand = useBrand();
+  const saasMode = useSaasMode();
+  const session = useSaasSession();
+  const showGenerator =
+    !saasMode || (session.status === 'signed-in' && session.account.role !== 'student');
+  const needsQuote =
+    saasMode && session.status === 'signed-in' && session.account.role !== 'student';
+  const [quoteOk, setQuoteOk] = useState(false);
+  const acceptQuote = useCallback((ok: boolean) => setQuoteOk(ok), []);
   const { theme, setTheme } = useTheme();
   const router = useRouter();
   // Do not replay the classic hero's entrance after the route handoff already
@@ -343,13 +360,21 @@ function HomePage() {
     // Read sessionStorage on the client only (avoids SSR hydration mismatch).
     // Both reads resolve before flipping `hydrated`, so the hero layout does
     // not thrash as each lands independently.
+    if (saasMode && session.status === 'loading') return;
+    if (session.status === 'signed-out') {
+      setHydrated(true);
+      return () => {
+        revokeThumbnailSlideMediaUrls(thumbnailsRef.current);
+        thumbnailsRef.current = {};
+      };
+    }
     void Promise.all([loadClassrooms(), loadFolders()]).finally(() => setHydrated(true));
 
     return () => {
       revokeThumbnailSlideMediaUrls(thumbnailsRef.current);
       thumbnailsRef.current = {};
     };
-  }, []);
+  }, [saasMode, session.status]);
 
   const handleDelete = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -693,7 +718,10 @@ function HomePage() {
     return date.toLocaleDateString();
   };
 
-  const canGenerate = !!form.requirement.trim() && hasUsableProvider;
+  const canGenerate =
+    !!form.requirement.trim() &&
+    (hasUsableProvider || (session.status === 'signed-in' && session.account.role !== 'student')) &&
+    (!needsQuote || quoteOk);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
@@ -725,6 +753,8 @@ function HomePage() {
         ref={toolbarRef}
         className="fixed top-4 right-4 z-50 flex items-center gap-1 bg-white/60 dark:bg-gray-800/60 backdrop-blur-md px-2 py-1.5 rounded-full border border-gray-100/50 dark:border-gray-700/50 shadow-sm"
       >
+        <SaasAccountMenu />
+
         {/* Language Selector */}
         <LanguageSwitcher onOpen={() => setThemeOpen(false)} />
 
@@ -832,9 +862,7 @@ function HomePage() {
       >
         {/* ── Logo ── */}
         <div className="relative" data-pro-morph="lockup">
-          <motion.img
-            src="/logo-horizontal.png"
-            alt="OpenMAIC"
+          <motion.div
             initial={heroEnter({ opacity: 0, scale: 0.9 })}
             animate={{ opacity: 1, scale: 1 }}
             transition={{
@@ -843,8 +871,10 @@ function HomePage() {
               stiffness: 200,
               damping: 20,
             }}
-            className="h-12 md:h-16 mb-2 -ml-2 md:-ml-3"
-          />
+            className="mb-2"
+          >
+            <BrandLockup size="hero" />
+          </motion.div>
           {workbenchEntryEnabled ? (
             <div
               className="absolute left-full top-0 ml-1.5 mt-[10px] md:ml-2 md:mt-[14px]"
@@ -872,9 +902,18 @@ function HomePage() {
           transition={{ delay: 0.35 }}
           className="w-full"
         >
+          {!showGenerator ? (
+            <SaasEntryCard
+              loading={session.status === 'loading'}
+              student={session.status === 'signed-in'}
+            />
+          ) : null}
           <div
             data-pro-morph="composer"
-            className="w-full rounded-2xl border border-border/60 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl shadow-xl shadow-black/[0.03] dark:shadow-black/20 transition-shadow focus-within:shadow-2xl focus-within:shadow-violet-500/[0.06]"
+            className={cn(
+              'w-full rounded-2xl border border-border/60 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl shadow-xl shadow-black/[0.03] dark:shadow-black/20 transition-shadow focus-within:shadow-2xl focus-within:shadow-violet-500/[0.06]',
+              !showGenerator && 'hidden',
+            )}
           >
             {/* ── Greeting + Profile + Agents ── */}
             <div className="relative z-20 flex items-start justify-between">
@@ -894,6 +933,8 @@ function HomePage() {
               onKeyDown={handleKeyDown}
               rows={4}
             />
+
+            {needsQuote ? <LessonQuote onSufficient={acceptQuote} /> : null}
 
             {/* Toolbar row */}
             <div className="px-3 pb-3 flex items-end gap-2">
@@ -1024,6 +1065,9 @@ function HomePage() {
             </motion.div>
           )}
         </AnimatePresence>
+        {session.status !== 'signed-in' || session.account.role !== 'student' ? (
+          <GenerationGuide priced={saasMode} />
+        ) : null}
       </motion.div>
 
       {/* ═══ Recent classrooms — collapsible ═══ */}
@@ -1031,7 +1075,7 @@ function HomePage() {
           the New-folder / import / search actions, so a brand-new user with
           zero courses and zero folders can still create the first folder or
           import. One stable action surface across root, folder, and empty. */}
-      {hydrated && (
+      {hydrated && session.status !== 'signed-out' && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -1346,7 +1390,7 @@ function HomePage() {
 
       {/* Footer — flows with content, at the very end */}
       <div className="mt-auto pt-12 pb-4 text-center text-xs text-muted-foreground/40">
-        OpenMAIC Open Source Project
+        {brand.productName}
       </div>
     </div>
   );

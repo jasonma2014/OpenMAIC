@@ -11,6 +11,15 @@
   },
   "home": {
     "slogan": "マルチエージェント対話型教室で生成的に学ぶ",
+    "guideTitle": "How a lesson is made",
+    "guideStep1Title": "Describe the lesson",
+    "guideStep1Body": "Write what this lesson should teach. You can also attach a textbook or slides.",
+    "guideStep2Title": "Check the price",
+    "guideStep2Body": "An estimate appears before generation. It starts only when the balance covers it.",
+    "guideStep3Title": "Confirm the outline",
+    "guideStep3Body": "The structure comes first. After you confirm it, each page gets an explanation, pictures, and narration.",
+    "guideStep4Title": "Listen, then publish",
+    "guideStep4Body": "Play the lesson once. When it sounds right, publish a class code. Students can only attend.",
     "greetingWithName": "こんにちは、{{name}}さん"
   },
   "toolbar": {
@@ -1871,7 +1880,7 @@
       "download": "ダウンロード",
       "detailFailed": "スキル詳細を読み込めませんでした",
       "contentLabel": "内容",
-      "builtinDetailNote": "このスキルは OpenMAIC に同梱されています。他のエージェントワークスペースにインポートするにはダウンロードしてください。",
+      "builtinDetailNote": "このスキルは 明课 に同梱されています。他のエージェントワークスペースにインポートするにはダウンロードしてください。",
       "upload": "アップロード",
       "uploading": "アップロード中…",
       "uploadFailed": "スキルをアップロードできませんでした。ファイルを確認して再試行してください。",

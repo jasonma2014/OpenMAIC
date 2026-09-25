@@ -12,6 +12,9 @@ import { ServerProvidersInit } from '@/components/server-providers-init';
 import { StorageHealthNotice } from '@/components/storage-health-notice';
 import { AccessCodeGuard } from '@/components/access-code-guard';
 import { ProSwapWatcher } from '@/components/workbench/ProSwapWatcher';
+import { SaasModeProvider } from '@/components/saas/saas-mode';
+import { isSaasEnabled } from '@/lib/config/feature-flags';
+import { DEFAULT_BRAND } from '@/lib/brand/brand-config';
 
 // The UI font is loaded from @fontsource's stylesheet rather than next/font,
 // because only the stylesheet carries the per-subset `unicode-range`
@@ -29,9 +32,8 @@ import { ProSwapWatcher } from '@/components/workbench/ProSwapWatcher';
 import '@fontsource-variable/inter';
 
 export const metadata: Metadata = {
-  title: 'OpenMAIC',
-  description:
-    'The open-source AI interactive classroom. Upload a PDF to instantly generate an immersive, multi-agent learning experience.',
+  title: DEFAULT_BRAND.productName,
+  description: '给中小学机构生成可以上课的互动课。',
 };
 
 export default function RootLayout({
@@ -39,17 +41,27 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const saasEnabled = isSaasEnabled();
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `window.__OPENMAIC_SAAS__=${saasEnabled ? 'true' : 'false'};`,
+          }}
+        />
+      </head>
       <body
         className={`${GeistSans.variable} ${GeistMono.variable} antialiased`}
         suppressHydrationWarning
       >
         <ThemeProvider>
           <I18nProvider>
-            <ServerProvidersInit />
-            <ProSwapWatcher />
-            <AccessCodeGuard>{children}</AccessCodeGuard>
+            <SaasModeProvider enabled={saasEnabled}>
+              <ServerProvidersInit />
+              <ProSwapWatcher />
+              <AccessCodeGuard>{children}</AccessCodeGuard>
+            </SaasModeProvider>
             <Toaster position="top-center" />
             {/* After the Toaster: this one raises a toast on mount when
                 persistence is already broken, and a toast raised before its

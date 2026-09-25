@@ -1,3 +1,4 @@
+import { isSaasEnabled } from '@/lib/config/feature-flags';
 import {
   getServerProviders,
   getServerTTSProviders,
@@ -13,9 +14,20 @@ import { createLogger } from '@/lib/logger';
 
 const log = createLogger('ServerProviders');
 
+function redactProviderSecrets<T>(value: T): T {
+  if (Array.isArray(value)) return value.map((item) => redactProviderSecrets(item)) as T;
+  if (!value || typeof value !== 'object') return value;
+  const redacted: Record<string, unknown> = {};
+  for (const [key, item] of Object.entries(value)) {
+    redacted[key] =
+      typeof item === 'string' && /key|secret|token/i.test(key) ? '' : redactProviderSecrets(item);
+  }
+  return redacted as T;
+}
+
 export async function GET() {
   try {
-    return apiSuccess({
+    const body = {
       providers: getServerProviders(),
       tts: getServerTTSProviders(),
       asr: getServerASRProviders(),
@@ -26,7 +38,8 @@ export async function GET() {
       generation: {
         parallelSceneConcurrency: getParallelSceneConcurrency(),
       },
-    });
+    };
+    return apiSuccess(isSaasEnabled() ? redactProviderSecrets(body) : body);
   } catch (error) {
     log.error('Error fetching server providers:', error);
     return apiError(

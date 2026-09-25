@@ -14,6 +14,10 @@
  */
 
 import { NextRequest } from 'next/server';
+import { isSaasEnabled } from '@/lib/config/feature-flags';
+import { markupBps } from '@/lib/saas/billing';
+import { guardSaasAction, holdSaasOrg } from '@/lib/saas/guard';
+import { quoteLessonRetail } from '@/lib/saas/quote';
 import { streamLLM } from '@/lib/ai/llm';
 import { buildPrompt, PROMPT_IDS } from '@/lib/prompts';
 import {
@@ -285,6 +289,11 @@ function ensureUniqueOutlineId(outline: SceneOutline, usedIds: Set<string>): Sce
 }
 
 export async function POST(req: NextRequest) {
+  const lessonQuote = isSaasEnabled()
+    ? quoteLessonRetail(new Date(), markupBps(process.env.OPENMAIC_SAAS_MARKUP_BPS))
+    : 1;
+  const blocked = holdSaasOrg(await guardSaasAction(req.headers, 'generate', lessonQuote));
+  if (blocked) return blocked;
   let requirementSnippet: string | undefined;
   let resolvedModelString: string | undefined;
   try {

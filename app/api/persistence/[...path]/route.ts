@@ -7,6 +7,7 @@ import {
   type AssetIndirectByteEgress,
 } from '@openmaic/storage/server';
 
+import { isSaasEnabled } from '@/lib/config/feature-flags';
 import { validateAppScene, validateAppStage } from '@/lib/document-store/validators';
 import { resolveAssetCollectionGraceMs } from '@/lib/persistence/asset-collection-grace';
 import {
@@ -25,6 +26,8 @@ import {
 } from '@/lib/persistence/server-provider';
 import { readStageMeta } from '@/lib/persistence/stage-meta';
 import { APP_RUNTIME_PAYLOAD_VALIDATORS } from '@/lib/runtime/payload-validators';
+import { saasPrincipalFromHeaders } from '@/lib/saas/principal';
+import { tightenStudentAccess } from '@/lib/saas/student-access';
 import { withRequestOwnerId } from '@/lib/server/agent-runtime/with-owner';
 
 export const runtime = 'nodejs';
@@ -84,6 +87,7 @@ async function createPersistenceHandler(
   ownerId: string,
   access: DocumentAccess,
   poolFactory?: PersistencePoolFactory,
+  runtimeLearnerKey?: string,
 ): Promise<RequestListener> {
   const { pool, runtimeStore, assetStore } = await getServerPersistenceProvider(
     connectionString,
@@ -147,6 +151,7 @@ async function createPersistenceHandler(
       if (request.url?.startsWith('/assets')) {
         return { key: SHARED_ASSET_PRINCIPAL, learnerKey: ownerId };
       }
+      if (runtimeLearnerKey) return { learnerKey: runtimeLearnerKey };
       return authenticatePersistenceRequest(request);
     },
     authorizeAssets: async (_principal, request) => {
@@ -318,7 +323,7 @@ export async function handlePersistenceRequest(
   if (!connectionString) {
     return jsonError(404, 'PERSISTENCE_NOT_CONFIGURED', 'server persistence not configured');
   }
-  if (!process.env.PERSISTENCE_DEV_TOKEN) {
+  if (!isSaasEnabled() && !process.env.PERSISTENCE_DEV_TOKEN) {
     return jsonError(
       503,
       'PERSISTENCE_DEV_TOKEN_MISSING',
@@ -326,7 +331,12 @@ export async function handlePersistenceRequest(
     );
   }
 
-  return withRequestOwnerId(request, async (ownerId, responseHeaders) => {
+  const serve = async (
+    ownerId: string,
+    responseHeaders: Headers,
+    runtimeLearnerKey?: string,
+    studentPlayOnly = false,
+  ): Promise<Response> => {
     try {
       const path = routeRelativePath(request);
       const action = parseDocumentAction(request.method, path);
@@ -344,13 +354,24 @@ export async function handlePersistenceRequest(
               .then((result) => result.rows.length > 0),
           (stageId) => readStageMeta(queryable, stageId),
         );
+        if (studentPlayOnly) {
+          const meta =
+            action.kind === 'read' ? await readStageMeta(queryable, action.stageId) : null;
+          access = tightenStudentAccess(action, access, meta, ownerId);
+        }
       }
 
       const response =
         access === 'not-found'
           ? jsonError(404, 'DOCUMENT_NOT_FOUND', '@openmaic/storage: document not found')
           : await runNodeHandler(
-              await createPersistenceHandler(connectionString, ownerId, access, deps.poolFactory),
+              await createPersistenceHandler(
+                connectionString,
+                ownerId,
+                access,
+                deps.poolFactory,
+                runtimeLearnerKey,
+              ),
               request,
             );
       for (const [name, value] of responseHeaders.entries()) response.headers.append(name, value);
@@ -365,7 +386,20 @@ export async function handlePersistenceRequest(
       for (const [name, value] of responseHeaders.entries()) response.headers.append(name, value);
       return response;
     }
-  });
+  };
+
+  if (isSaasEnabled()) {
+    try {
+      const principal = await saasPrincipalFromHeaders(request.headers);
+      if (!principal) return jsonError(401, 'UNAUTHENTICATED', 'Sign in required');
+      return serve(principal.orgId, new Headers(), principal.userId, principal.role === 'student');
+    } catch (error) {
+      console.error('SaaS persistence session lookup failed', error);
+      return jsonError(500, 'PERSISTENCE_INIT_FAILED', 'server persistence initialization failed');
+    }
+  }
+
+  return withRequestOwnerId(request, (ownerId, responseHeaders) => serve(ownerId, responseHeaders));
 }
 
 export const GET = (request: Request) => handlePersistenceRequest(request);

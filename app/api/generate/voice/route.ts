@@ -15,6 +15,9 @@
  */
 
 import { NextRequest } from 'next/server';
+import { isSaasEnabled } from '@/lib/config/feature-flags';
+import { guardSaasAction, holdSaasOrg } from '@/lib/saas/guard';
+import { ttsProviderForRequest } from '@/lib/saas/platform-providers';
 import {
   isServerConfiguredProvider,
   isServerTTSProviderDisabled,
@@ -62,6 +65,8 @@ function childSignal(
 }
 
 export async function POST(req: NextRequest) {
+  const blocked = holdSaasOrg(await guardSaasAction(req.headers, 'play'));
+  if (blocked) return blocked;
   let providerId: string | undefined;
   let voiceId: string | undefined;
   const deadline = new AbortController();
@@ -86,7 +91,9 @@ export async function POST(req: NextRequest) {
       ttsModelId?: string;
       action?: 'register' | 'delete';
     };
-    providerId = typeof body.providerId === 'string' ? body.providerId : undefined;
+    providerId = ttsProviderForRequest(
+      typeof body.providerId === 'string' ? body.providerId : undefined,
+    );
     voiceId = typeof body.voiceId === 'string' ? body.voiceId.trim() : undefined;
     const design = normalizeVoiceDesign(body.descriptor);
 
@@ -120,7 +127,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Managed providers are admin-owned: ignore any client-sent key/baseUrl.
-    const managed = isServerConfiguredProvider('tts', providerId);
+    const managed = isSaasEnabled() || isServerConfiguredProvider('tts', providerId);
     const clientBaseUrl = managed ? undefined : body.ttsBaseUrl || undefined;
     // A client BYOK base URL is always validated under the strict public policy;
     // only a server-managed backend may inherit ALLOW_LOCAL_NETWORKS.
@@ -145,7 +152,7 @@ export async function POST(req: NextRequest) {
       model:
         providerId === 'qwen-tts'
           ? resolveQwenVoiceCloneModel()
-          : resolveTTSModel(providerId, body.ttsModelId),
+          : resolveTTSModel(providerId, isSaasEnabled() ? undefined : body.ttsModelId),
     };
 
     if (deleting) {

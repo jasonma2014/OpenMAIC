@@ -7,6 +7,7 @@
 
 import type { NextRequest } from 'next/server';
 import { getModel, getProvider, parseModelString, type ModelWithInfo } from '@/lib/ai/providers';
+import { isSaasEnabled } from '@/lib/config/feature-flags';
 import type { ProviderType, ThinkingConfig } from '@/lib/types/provider';
 import {
   isServerConfiguredProvider,
@@ -170,6 +171,7 @@ export async function resolveModelFromHeaders(
   stage?: LlmStage,
   thinkingConfig?: ThinkingConfig,
 ): Promise<ResolvedModel> {
+  if (isSaasEnabled()) return resolveModel({ stage, thinkingConfig });
   return resolveModel({
     modelString: req.headers.get('x-model') || undefined,
     stage,

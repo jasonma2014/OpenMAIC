@@ -30,6 +30,8 @@ import { useAgentRegistry } from '@/lib/orchestration/registry/store';
 import { generateMediaForOutlines } from '@/lib/media/media-orchestrator';
 import { commitToPool } from '@/lib/media/commit-to-pool';
 import { mayGenerateForStage } from '@/lib/classroom/generation-permission';
+import { isSaasBrowserEnabled } from '@/lib/persistence/bootstrap';
+import { refreshBalanceAfterSpend } from '@/lib/saas/use-saas-session';
 import { isServerBackedMediaPersistence } from '@/lib/persistence/media-persistence';
 import { lazyBoundedMap } from '@/lib/utils/concurrency';
 import { createLogger } from '@/lib/logger';
@@ -77,25 +79,26 @@ function getApiHeaders(): HeadersInit {
   const imageProviderConfig = settings.imageProvidersConfig?.[settings.imageProviderId];
   const videoProviderConfig = settings.videoProvidersConfig?.[settings.videoProviderId];
 
-  return {
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    'x-image-generation-enabled': String(settings.imageGenerationEnabled ?? false),
+    'x-video-generation-enabled': String(settings.videoGenerationEnabled ?? false),
+  };
+  if (isSaasBrowserEnabled()) return headers;
+  return {
+    ...headers,
     'x-model': config.modelString || '',
     'x-api-key': config.apiKey || '',
     'x-base-url': config.baseUrl || '',
     'x-provider-type': config.providerType || '',
-    // Image generation provider
     'x-image-provider': settings.imageProviderId || '',
     'x-image-model': settings.imageModelId || '',
     'x-image-api-key': imageProviderConfig?.apiKey || '',
     'x-image-base-url': imageProviderConfig?.baseUrl || '',
-    // Video generation provider
     'x-video-provider': settings.videoProviderId || '',
     'x-video-model': settings.videoModelId || '',
     'x-video-api-key': videoProviderConfig?.apiKey || '',
     'x-video-base-url': videoProviderConfig?.baseUrl || '',
-    // Media generation toggles
-    'x-image-generation-enabled': String(settings.imageGenerationEnabled ?? false),
-    'x-video-generation-enabled': String(settings.videoGenerationEnabled ?? false),
   };
 }
 
@@ -370,11 +373,12 @@ export async function generateAndStoreTTS(
             ttsModelId,
             ttsVoice,
             ttsSpeed: settings.ttsSpeed,
-            ttsApiKey: ttsProviderConfig?.apiKey || undefined,
+            ttsApiKey: isSaasBrowserEnabled() ? undefined : ttsProviderConfig?.apiKey || undefined,
             // Managed providers resolve their base URL server-side; only send the
             // client's own base URL (custom providers).
-            ttsBaseUrl:
-              ttsProviderConfig?.baseUrl || ttsProviderConfig?.customDefaultBaseUrl || undefined,
+            ttsBaseUrl: isSaasBrowserEnabled()
+              ? undefined
+              : ttsProviderConfig?.baseUrl || ttsProviderConfig?.customDefaultBaseUrl || undefined,
             ttsProviderOptions: providerOptions,
           }),
           signal,
@@ -1037,6 +1041,7 @@ export function useSceneGenerator(options: UseSceneGeneratorOptions = {}) {
           throw err;
         }
       } finally {
+        refreshBalanceAfterSpend();
         generatingRef.current = false;
         fetchAbortRef.current = null;
       }

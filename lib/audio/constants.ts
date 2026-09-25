@@ -1341,7 +1341,7 @@ export const DEFAULT_TTS_VOICES: Record<BuiltInTTSProviderId, string> = {
   'voxcpm-tts': VOXCPM_AUTO_VOICE_ID,
   'doubao-tts': 'zh_female_vv_uranus_bigtts',
   'elevenlabs-tts': 'EXAVITQu4vr4xnSDxMaL',
-  'minimax-tts': 'female-yujie',
+  'minimax-tts': 'Chinese (Mandarin)_News_Anchor',
   'lemonade-tts': 'af_heart',
   'browser-native-tts': 'default',
 };

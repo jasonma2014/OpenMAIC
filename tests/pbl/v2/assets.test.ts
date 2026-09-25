@@ -13,7 +13,9 @@ describe('PBL v2 static assets', () => {
     expectPng('public/avatars/instructor.png');
   });
 
-  test('ships the OpenMAIC mark used in the workspace header', () => {
-    expectPng('public/openmaic-mark.png');
+  test('ships the product mark used in the workspace header', () => {
+    const mark = readFileSync('public/mingke-mark.svg', 'utf8');
+    expect(mark).toContain('viewBox="0 0 64 64"');
+    expect(mark).toContain('#722ED1');
   });
 });

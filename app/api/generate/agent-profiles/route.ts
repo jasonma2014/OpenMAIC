@@ -9,6 +9,7 @@ import { NextRequest } from 'next/server';
 import { nanoid } from 'nanoid';
 import { callLLM } from '@/lib/ai/llm';
 import { createLogger } from '@/lib/logger';
+import { guardSaasAction, holdSaasOrg } from '@/lib/saas/guard';
 import { apiError, apiSuccess } from '@/lib/server/api-response';
 import { resolveModelFromRequest } from '@/lib/server/resolve-model';
 import { AGENT_COLOR_PALETTE } from '@/lib/constants/agent-defaults';
@@ -128,6 +129,8 @@ function stripCodeFences(text: string): string {
 }
 
 export async function POST(req: NextRequest) {
+  const blocked = holdSaasOrg(await guardSaasAction(req.headers, 'generate'));
+  if (blocked) return blocked;
   let stageName: string | undefined;
   let modelString: string | undefined;
   try {

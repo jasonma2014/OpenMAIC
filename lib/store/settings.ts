@@ -1922,6 +1922,36 @@ export const useSettingsStore = create<SettingsState>()(
                 }
               }
 
+              // SaaS already ran first-time setup before the platform TTS
+              // provider existed. Keep selecting that server voice on later
+              // syncs, until the user has a server-managed provider selected.
+              if (
+                typeof window !== 'undefined' &&
+                (window as Window & { __OPENMAIC_SAAS__?: boolean }).__OPENMAIC_SAAS__ === true
+              ) {
+                const serverTtsIds = Object.entries(data.tts || {})
+                  .filter(([, info]) => !info.disabled)
+                  .map(([id]) => id) as TTSProviderId[];
+                if (
+                  serverTtsIds.length > 0 &&
+                  !newTTSConfig[state.ttsProviderId]?.isServerConfigured
+                ) {
+                  autoTtsProvider = serverTtsIds[0];
+                  autoTtsVoice =
+                    DEFAULT_TTS_VOICES[autoTtsProvider as BuiltInTTSProviderId] || 'default';
+                  if (!state.ttsEnabled) autoTtsEnabled = true;
+                }
+                // The first SaaS default, MiniMax「御姐」, sounds stylized for a
+                // lecture. Move existing classrooms onto the steady news anchor.
+                const narrationProvider = autoTtsProvider ?? state.ttsProviderId;
+                if (
+                  narrationProvider === 'minimax-tts' &&
+                  (state.ttsVoice === 'female-yujie' || state.ttsVoice === 'default')
+                ) {
+                  autoTtsVoice = DEFAULT_TTS_VOICES['minimax-tts'];
+                }
+              }
+
               // (LLM first-load auto-select removed: the symmetric provider
               // recovery + resolveSelectedModel above now resolve LLM provider
               // and model atomically at the source, covering server-configured
@@ -1989,6 +2019,9 @@ export const useSettingsStore = create<SettingsState>()(
                   ttsProviderId: autoTtsProvider,
                   ttsVoice: autoTtsVoice,
                 }),
+                ...(autoTtsVoice &&
+                  !autoTtsProvider &&
+                  autoTtsVoice !== state.ttsVoice && { ttsVoice: autoTtsVoice }),
                 ...(autoAsrProvider && {
                   asrProviderId: autoAsrProvider,
                   asrLanguage: autoAsrLanguage,
