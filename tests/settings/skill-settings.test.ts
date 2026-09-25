@@ -343,7 +343,7 @@ describe('the settings surface mounts the section', () => {
   it('renders SkillSettings when the skills section is active', () => {
     const dialog = read('components/settings/index.tsx');
     expect(dialog).toContain("import { SkillSettings } from './skill-settings'");
-    expect(dialog).toContain("{activeSection === 'skills' && <SkillSettings />}");
+    expect(dialog).toContain("{shownSection === 'skills' && <SkillSettings />}");
     expect(dialog).toContain("setActiveSection('skills')");
     expect(dialog).toContain("t('settings.skills.nav')");
     expect(dialog).toContain("t('settings.skills.title')");

@@ -9,7 +9,7 @@ import { ensureSaasSchema } from '@/lib/saas/accounts';
 
 const connectionString = 'postgresql://majian@127.0.0.1:5432/openmaic';
 
-describe('local PostgreSQL SaaS schema', () => {
+describe.skipIf(process.env.CI === 'true')('local PostgreSQL SaaS schema', () => {
   const pool = new Pool({ connectionString });
   const email = `saas-${Date.now()}@school.test`;
 
