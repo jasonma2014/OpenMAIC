@@ -71,7 +71,7 @@ jobs:
           ssh-keyscan -H "$LIGHTHOUSE_HOST" >> ~/.ssh/known_hosts
           ssh_opts=(-i ~/.ssh/lighthouse -o IdentitiesOnly=yes -o ServerAliveInterval=30)
           target="$LIGHTHOUSE_USER@$LIGHTHOUSE_HOST"
-          ssh "${ssh_opts[@]}" "$target" 'test -s /opt/mingke/env && docker info >/dev/null'
+          ssh "${ssh_opts[@]}" "$target" 'test -s /opt/mingke/env && docker info >/dev/null && sudo install -d -m 755 -o ubuntu -g ubuntu /opt/mingke'
           scp "${ssh_opts[@]}" deploy/lighthouse-compose.yml "$target:/opt/mingke/compose.yml"
           scp "${ssh_opts[@]}" scripts/lighthouse-up.sh "$target:/opt/mingke/up.sh"
           docker save openmaic:release | gzip | ssh "${ssh_opts[@]}" "$target" 'gunzip | docker load'
