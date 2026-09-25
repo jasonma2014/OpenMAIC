@@ -1993,6 +1993,7 @@
   "profile": {
     "title": "Perfil",
     "defaultNickname": "Estudante",
+    "defaultTeacherNickname": "Professor",
     "chooseAvatar": "Escolher Avatar",
     "uploadAvatar": "Enviar",
     "bioPlaceholder": "Conte um pouco sobre você — o professor de IA vai personalizar as aulas...",

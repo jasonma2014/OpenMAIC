@@ -1420,7 +1420,13 @@ function GreetingBar() {
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const displayName = nickname || t('profile.defaultNickname');
+  const saasMode = useSaasMode();
+  const session = useSaasSession();
+  const student =
+    saasMode && session.status === 'signed-in' && session.account.role === 'student';
+  const displayName =
+    nickname.trim() ||
+    t(saasMode && !student ? 'profile.defaultTeacherNickname' : 'profile.defaultNickname');
 
   // Click-outside to collapse
   useEffect(() => {

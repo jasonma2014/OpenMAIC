@@ -1993,6 +1993,7 @@
   "profile": {
     "title": "Profil",
     "defaultNickname": "Lerntalent",
+    "defaultTeacherNickname": "Lehrkraft",
     "chooseAvatar": "Avatar auswählen",
     "uploadAvatar": "Hochladen",
     "bioPlaceholder": "Erzähl etwas über dich – so kann die KI-Lehrkraft den Unterricht auf dich zuschneiden…",

@@ -1993,6 +1993,7 @@
   "profile": {
     "title": "Trang cá nhân",
     "defaultNickname": "Bạn học",
+    "defaultTeacherNickname": "Giáo viên",
     "chooseAvatar": "Chọn ảnh đại diện",
     "uploadAvatar": "Tải lên",
     "bioPlaceholder": "Giới thiệu một chút về bạn — giảng viên AI sẽ dựa vào đó để soạn bài phù hợp với bạn…",

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { connection } from 'next/server';
 import { GeistSans } from 'geist/font/sans';
 import { GeistMono } from 'geist/font/mono';
 import './globals.css';
@@ -36,11 +37,14 @@ export const metadata: Metadata = {
   description: '给中小学机构生成可以上课的互动课。',
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // The homepage is prerendered at image build time, when this flag is unset.
+  // Wait for the request so the running server's flag decides the page.
+  await connection();
   const saasEnabled = isSaasEnabled();
   return (
     <html lang="en" suppressHydrationWarning>

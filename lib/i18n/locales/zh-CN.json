@@ -1993,6 +1993,7 @@
   "profile": {
     "title": "个人资料",
     "defaultNickname": "同学",
+    "defaultTeacherNickname": "老师",
     "chooseAvatar": "选择头像",
     "uploadAvatar": "上传",
     "bioPlaceholder": "介绍一下自己，AI老师会根据你的背景个性化教学...",

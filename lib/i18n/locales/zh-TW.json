@@ -1978,6 +1978,7 @@
   "profile": {
     "title": "個人資料",
     "defaultNickname": "同學",
+    "defaultTeacherNickname": "老師",
     "chooseAvatar": "選擇頭像",
     "uploadAvatar": "上傳",
     "bioPlaceholder": "介紹一下自己，AI老師會根據你的背景提供個人化教學...",

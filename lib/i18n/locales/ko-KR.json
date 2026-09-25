@@ -1993,6 +1993,7 @@
   "profile": {
     "title": "프로필",
     "defaultNickname": "학습자",
+    "defaultTeacherNickname": "선생님",
     "chooseAvatar": "아바타 선택",
     "uploadAvatar": "업로드",
     "bioPlaceholder": "자신에 대해 알려주세요 — AI 선생님이 맞춤 수업을 준비해 드립니다...",

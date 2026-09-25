@@ -1993,6 +1993,7 @@
   "profile": {
     "title": "Профиль",
     "defaultNickname": "Ученик",
+    "defaultTeacherNickname": "Учитель",
     "chooseAvatar": "Выбрать аватар",
     "uploadAvatar": "Загрузить",
     "bioPlaceholder": "Расскажите о себе — AI-учитель адаптирует уроки под ваш уровень...",

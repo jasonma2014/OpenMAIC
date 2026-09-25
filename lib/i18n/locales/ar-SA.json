@@ -1993,6 +1993,7 @@
   "profile": {
     "title": "الملف الشخصي",
     "defaultNickname": "متعلّم",
+    "defaultTeacherNickname": "معلّم",
     "chooseAvatar": "اختر صورة رمزية",
     "uploadAvatar": "رفع",
     "bioPlaceholder": "أخبرنا عن نفسك — سيقوم المعلم الذكي بتخصيص الدروس لك...",
