@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { debitOrgWallet, quoteUsageCost } from '@/lib/saas/billing';
 import { currentSaasOrgId, runWithSaasOrg } from '@/lib/saas/context';
 import { quoteLessonCost, quoteLessonRetail } from '@/lib/saas/quote';
-import type { SaasDb, SaasQueryResult } from '@/lib/saas/accounts';
+import type { SaasDb } from '@/lib/saas/accounts';
 import type { UsageRecord } from '@/lib/server/usage-storage';
 
 describe('SaaS usage quotes', () => {
@@ -69,16 +69,16 @@ describe('SaaS wallet debit', () => {
 function walletDb(start: number): { db: SaasDb; state: { balance: number; ledger: number } } {
   const state = { balance: start, ledger: 0 };
   const database: SaasDb = {
-    query: (sql, params = []) => {
+    query: async <T>(sql: string, params: readonly unknown[] = []) => {
       if (sql.includes('UPDATE saas_wallets')) {
         const retail = Number(params[1]);
-        if (state.balance < retail) return Promise.resolve({ rows: [] });
+        if (state.balance < retail) return { rows: [] as T[] };
         state.balance -= retail;
-        return Promise.resolve({ rows: [{ balance_milli_yuan: state.balance }] });
+        return { rows: [{ balance_milli_yuan: state.balance }] as T[] };
       }
       if (sql.startsWith('INSERT INTO saas_ledger')) {
         state.ledger += 1;
-        return Promise.resolve({ rows: [] } satisfies SaasQueryResult<Record<string, unknown>>);
+        return { rows: [] as T[] };
       }
       throw new Error(sql);
     },

@@ -109,7 +109,8 @@ function memoryDb(): SaasDb {
   const ledger: MemoryRow[] = [];
 
   const database: SaasDb = {
-    query: (sql, params = []) => Promise.resolve(run(sql, params)),
+    query: async <T>(sql: string, params: readonly unknown[] = []) =>
+      run(sql, params) as SaasQueryResult<T>,
     transaction: (fn) => fn(database),
   };
 

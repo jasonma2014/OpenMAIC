@@ -40,21 +40,29 @@ describe('SaaS generation guard', () => {
     const { guardSaasAction } = await import('@/lib/saas/guard');
 
     principal.current = undefined;
-    expect((await guardSaasAction(new Headers(), 'generate'))?.status).toBe(401);
+    const signedOut = await guardSaasAction(new Headers(), 'generate');
+    expect(signedOut).toBeInstanceOf(Response);
+    expect((signedOut as Response).status).toBe(401);
 
     principal.current = { ...teacher(1_000), role: 'student' };
-    expect((await guardSaasAction(new Headers(), 'generate'))?.status).toBe(403);
+    const student = await guardSaasAction(new Headers(), 'generate');
+    expect(student).toBeInstanceOf(Response);
+    expect((student as Response).status).toBe(403);
     expect(holdSaasOrg(await guardSaasAction(new Headers(), 'play'))).toBeNull();
 
     principal.current = teacher(0);
-    expect((await guardSaasAction(new Headers(), 'generate'))?.status).toBe(402);
+    const empty = await guardSaasAction(new Headers(), 'generate');
+    expect(empty).toBeInstanceOf(Response);
+    expect((empty as Response).status).toBe(402);
 
     principal.current = teacher(500);
     expect(holdSaasOrg(await guardSaasAction(new Headers(), 'generate'))).toBeNull();
     expect(currentSaasOrgId()).toBe('org-1');
 
     principal.current = teacher(1_000);
-    expect((await guardSaasAction(new Headers(), 'generate', 1_001))?.status).toBe(402);
+    const short = await guardSaasAction(new Headers(), 'generate', 1_001);
+    expect(short).toBeInstanceOf(Response);
+    expect((short as Response).status).toBe(402);
     expect(await guardSaasAction(new Headers(), 'generate', 1_000)).toEqual({ orgId: 'org-1' });
   });
 });

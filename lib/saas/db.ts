@@ -4,7 +4,10 @@ import { ensureSaasSchema, type SaasDb } from '@/lib/saas/accounts';
 import { getServerPersistenceProvider } from '@/lib/persistence/server-provider';
 
 function queryable(client: Pool | PoolClient): SaasDb['query'] {
-  return (sql, params) => client.query(sql, params as unknown[] | undefined);
+  return async <T>(sql: string, params?: readonly unknown[]) => {
+    const result = await client.query(sql, params as unknown[] | undefined);
+    return { rows: result.rows as T[] };
+  };
 }
 
 /** One pooled connection per transaction. Nested transactions are not used. */

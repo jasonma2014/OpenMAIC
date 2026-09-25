@@ -173,7 +173,7 @@ function isBenchmarkingAddress(value: string): boolean {
   if (canonical === null) return false;
   const addr = ipaddr.parse(canonical);
   if (addr.kind() !== 'ipv4') return false;
-  const [first, second] = addr.octets;
+  const [first, second] = (addr as ipaddr.IPv4).octets;
   return first === 198 && (second === 18 || second === 19);
 }
 
