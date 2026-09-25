@@ -2,9 +2,9 @@ name: SaaS release
 
 on:
   pull_request:
-    branches: [feat/saas]
+    branches: [master, feat/saas]
   push:
-    branches: [feat/saas]
+    branches: [master, feat/saas]
   workflow_dispatch:
 
 concurrency:
@@ -35,7 +35,7 @@ jobs:
   deploy:
     name: Publish to Lighthouse
     needs: test
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
