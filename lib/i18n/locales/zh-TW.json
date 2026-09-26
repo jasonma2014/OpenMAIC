@@ -243,7 +243,13 @@
     "exitFullscreen": "離開全螢幕",
     "editCourse": "編輯課程",
     "doneEditing": "完成編輯",
-    "proModeDisabledHint": "此頁面無法編輯——開啟課程投影片以使用 Pro 模式編輯。"
+    "proModeDisabledHint": "此頁面無法編輯——開啟課程投影片以使用 Pro 模式編輯。",
+    "generationPrompt": "當時的提示",
+    "generationPromptTitle": "生成這節課時的提示詞",
+    "generationPromptHint": "這是生成這一版課時寫下的內容。以後改課可以對照。",
+    "generationPromptVersion": "第 {{index}} 次 · {{time}}",
+    "generationPromptCopy": "複製",
+    "generationPromptCopied": "已複製"
   },
   "edit": {
     "proMode": "專業模式",

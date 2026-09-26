@@ -243,7 +243,13 @@
     "exitFullscreen": "Thoát toàn màn hình",
     "editCourse": "Sửa bài học",
     "doneEditing": "Sửa xong",
-    "proModeDisabledHint": "Trang này không sửa được — hãy mở một slide bài học để dùng chế độ Pro."
+    "proModeDisabledHint": "Trang này không sửa được — hãy mở một slide bài học để dùng chế độ Pro.",
+    "generationPrompt": "Lời nhắc lúc tạo",
+    "generationPromptTitle": "Lời nhắc dùng để tạo tiết học này",
+    "generationPromptHint": "Đây là nội dung đã viết khi tạo phiên bản này. Khi sửa bài có thể xem lại.",
+    "generationPromptVersion": "Lần {{index}} · {{time}}",
+    "generationPromptCopy": "Sao chép",
+    "generationPromptCopied": "Đã sao chép"
   },
   "edit": {
     "proMode": "Pro",

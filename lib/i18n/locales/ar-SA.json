@@ -243,7 +243,13 @@
     "exitFullscreen": "الخروج من ملء الشاشة",
     "editCourse": "تحرير الدورة",
     "doneEditing": "إنهاء التحرير",
-    "proModeDisabledHint": "التحرير غير متاح في هذه الصفحة — افتح شريحة من الدورة للتحرير باستخدام وضع Pro."
+    "proModeDisabledHint": "التحرير غير متاح في هذه الصفحة — افتح شريحة من الدورة للتحرير باستخدام وضع Pro.",
+    "generationPrompt": "التوجيه الأصلي",
+    "generationPromptTitle": "التوجيه الذي أُنشئ به هذا الدرس",
+    "generationPromptHint": "هذا ما كُتب عند إنشاء هذه النسخة. يمكن الرجوع إليه عند تعديل الدرس.",
+    "generationPromptVersion": "النسخة {{index}} · {{time}}",
+    "generationPromptCopy": "نسخ",
+    "generationPromptCopied": "تم النسخ"
   },
   "edit": {
     "proMode": "احترافي",

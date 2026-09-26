@@ -656,7 +656,13 @@
     "exitFullscreen": "Sair da tela cheia",
     "editCourse": "Editar curso",
     "doneEditing": "Concluir edição",
-    "proModeDisabledHint": "A edição não está disponível nesta página — abra um slide do curso para editar no modo Pro."
+    "proModeDisabledHint": "A edição não está disponível nesta página — abra um slide do curso para editar no modo Pro.",
+    "generationPrompt": "Instrução original",
+    "generationPromptTitle": "Instrução usada nesta aula",
+    "generationPromptHint": "Isto foi escrito ao gerar esta versão. Consulte ao revisar a aula.",
+    "generationPromptVersion": "Versão {{index}} · {{time}}",
+    "generationPromptCopy": "Copiar",
+    "generationPromptCopied": "Copiado"
   },
   "classroomComplete": {
     "title": "Curso concluído",

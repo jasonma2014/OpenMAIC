@@ -243,7 +243,13 @@
     "exitFullscreen": "退出全屏",
     "editCourse": "编辑课程",
     "doneEditing": "完成编辑",
-    "proModeDisabledHint": "本页不支持编辑——打开任意课程页即可使用 Pro 模式编辑。"
+    "proModeDisabledHint": "本页不支持编辑——打开任意课程页即可使用 Pro 模式编辑。",
+    "generationPrompt": "当时的提示",
+    "generationPromptTitle": "生成这节课时的提示词",
+    "generationPromptHint": "这是生成这一版课时写下的内容。以后改课可以对照。",
+    "generationPromptVersion": "第 {{index}} 次 · {{time}}",
+    "generationPromptCopy": "复制",
+    "generationPromptCopied": "已复制"
   },
   "edit": {
     "proMode": "专业模式",

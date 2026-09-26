@@ -136,6 +136,15 @@ export interface MultiAgentConfig {
 }
 
 /**
+ * The teacher's requirement text for one generation of a course.
+ * Kept with that course version so a later edit can show what was asked.
+ */
+export interface GenerationPrompt {
+  text: string;
+  createdAt: number;
+}
+
+/**
  * Stage - Represents the entire classroom/course.
  */
 export interface Stage {
@@ -171,6 +180,11 @@ export interface Stage {
    * vocational.
    */
   taskEngineMode?: boolean;
+  /**
+   * Requirement texts used to generate this course, oldest first.
+   * Absent on classrooms created before the prompt was kept.
+   */
+  generationPrompts?: GenerationPrompt[];
 }
 
 /**

@@ -243,7 +243,13 @@
     "exitFullscreen": "Свернуть",
     "editCourse": "Редактировать курс",
     "doneEditing": "Завершить редактирование",
-    "proModeDisabledHint": "Редактирование недоступно на этой странице — откройте слайд курса, чтобы редактировать в Pro-режиме."
+    "proModeDisabledHint": "Редактирование недоступно на этой странице — откройте слайд курса, чтобы редактировать в Pro-режиме.",
+    "generationPrompt": "Исходный запрос",
+    "generationPromptTitle": "Запрос, по которому собран этот урок",
+    "generationPromptHint": "Так была сформулирована эта версия. К тексту можно вернуться, когда урок нужно поправить.",
+    "generationPromptVersion": "Версия {{index}} · {{time}}",
+    "generationPromptCopy": "Копировать",
+    "generationPromptCopied": "Скопировано"
   },
   "edit": {
     "proMode": "Pro",

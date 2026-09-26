@@ -243,7 +243,13 @@
     "exitFullscreen": "Exit Fullscreen",
     "editCourse": "Edit course",
     "doneEditing": "Done editing",
-    "proModeDisabledHint": "Editing isn't available on this page — open a course slide to edit with Pro mode."
+    "proModeDisabledHint": "Editing isn't available on this page — open a course slide to edit with Pro mode.",
+    "generationPrompt": "Prompt used",
+    "generationPromptTitle": "Prompt used for this lesson",
+    "generationPromptHint": "This is what was written when this version was generated. Use it when you revise the lesson.",
+    "generationPromptVersion": "Version {{index}} · {{time}}",
+    "generationPromptCopy": "Copy",
+    "generationPromptCopied": "Copied"
   },
   "edit": {
     "proMode": "Pro",

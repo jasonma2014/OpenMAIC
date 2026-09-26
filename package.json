@@ -22,6 +22,7 @@
     "check": "prettier . --check",
     "format": "prettier . --write",
     "test": "vitest run",
+    "test:live-lesson": "node --import tsx eval/live-lesson/runner.ts",
     "test:package-tarballs": "node scripts/smoke-test-package-tarballs.mjs",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
@@ -195,7 +196,7 @@
     "semver": "7.8.5",
     "tailwindcss": "^4",
     "tslib": "^2.8.0",
-    "tsx": "^4.21.0",
+    "tsx": "^4.23.15",
     "typescript": "^5",
     "vitest": "^4.1.8",
     "vue-to-react": "^1.0.0"

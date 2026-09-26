@@ -26,6 +26,7 @@ import { isVideoExportEnabled } from '@/lib/config/feature-flags';
 import { useVideoRenderStore } from '@/lib/store/video-render';
 import { CircularProgress } from '@/components/ui/circular-progress';
 import { VideoExportDialog } from './video-export-dialog';
+import { GenerationPromptButton } from '@/components/stage/generation-prompt-button';
 import { PublishClassButton } from '@/components/saas/publish-class-button';
 import { LanguageSwitcher } from '../language-switcher';
 import { SettingsDialog } from '../settings';
@@ -260,6 +261,8 @@ export function HeaderControls({
           />
         </label>
       )}
+
+      <GenerationPromptButton />
 
       {showCourseActions ? <PublishClassButton /> : null}
 

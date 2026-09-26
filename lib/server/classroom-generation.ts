@@ -14,6 +14,7 @@ import {
 import { createSceneWithActions } from '@/lib/server/scene-generation';
 import { generatePBLV2Project } from '@/lib/pbl/v2/agents/planner';
 import { getDefaultAgents } from '@/lib/orchestration/registry/store';
+import { generationPromptsFromRequirement } from '@/lib/classroom/generation-prompt';
 import { createLogger } from '@/lib/logger';
 import { isProviderKeyRequired } from '@/lib/ai/providers';
 import { resolveClassroomWebSearchConfig } from '@/lib/server/web-search-config';
@@ -562,6 +563,8 @@ export async function generateClassroom(
     agents = getDefaultAgents();
   }
 
+  const createdAt = Date.now();
+  const generationPrompts = generationPromptsFromRequirement(requirement, createdAt);
   const { id: stageId, stage } = await reserveGeneratedClassroom((id) => ({
     id,
     name: courseTitle || outlines[0]?.title || requirement.slice(0, 50),
@@ -569,8 +572,9 @@ export async function generateClassroom(
     languageDirective,
     videoManifest: buildVideoManifestFromOutlines(outlines),
     style: 'interactive',
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
+    createdAt,
+    updatedAt: createdAt,
+    ...(generationPrompts ? { generationPrompts } : {}),
     // For LLM-generated agents, embed full configs so the client can
     // hydrate the agent registry without prior IndexedDB data.
     // For default agents, just record IDs — the client already has them.

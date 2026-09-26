@@ -45,6 +45,7 @@ import {
   buildDocumentBundle,
   type ParsedDocumentPart,
 } from '@/lib/document/bundle';
+import { generationPromptsFromRequirement } from '@/lib/classroom/generation-prompt';
 import { buildVideoManifestFromOutlines } from '@/lib/media/video-manifest';
 import { nanoid } from 'nanoid';
 import type { GeneratedAgentConfig, Stage } from '@/lib/types/stage';
@@ -544,15 +545,21 @@ function GenerationPreviewContent() {
 
       // Create stage client-side
       const stageId = nanoid(10);
+      const createdAt = Date.now();
+      const generationPrompts = generationPromptsFromRequirement(
+        currentSession.requirements.requirement,
+        createdAt,
+      );
       const stage: Stage = {
         id: stageId,
         name: extractTopicFromRequirement(currentSession.requirements.requirement),
         description: '',
         style: 'professional',
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
+        createdAt,
+        updatedAt: createdAt,
         interactiveMode: !!currentSession.requirements.interactiveMode,
         taskEngineMode: currentSession.taskEngineMode === true,
+        ...(generationPrompts ? { generationPrompts } : {}),
       };
 
       // ── Generate outlines first (infers languageDirective) ──

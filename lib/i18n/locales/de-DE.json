@@ -243,7 +243,13 @@
     "exitFullscreen": "Vollbild beenden",
     "editCourse": "Kurs bearbeiten",
     "doneEditing": "Bearbeitung abschließen",
-    "proModeDisabledHint": "Diese Seite kann nicht bearbeitet werden — öffne eine Kursfolie, um sie im Pro-Modus zu bearbeiten."
+    "proModeDisabledHint": "Diese Seite kann nicht bearbeitet werden — öffne eine Kursfolie, um sie im Pro-Modus zu bearbeiten.",
+    "generationPrompt": "Damalige Vorgabe",
+    "generationPromptTitle": "Vorgabe für diese Stunde",
+    "generationPromptHint": "Das stand bei der Erstellung dieser Version. Beim Überarbeiten kannst du es nachlesen.",
+    "generationPromptVersion": "Version {{index}} · {{time}}",
+    "generationPromptCopy": "Kopieren",
+    "generationPromptCopied": "Kopiert"
   },
   "edit": {
     "proMode": "Pro",

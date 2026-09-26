@@ -243,7 +243,13 @@
     "exitFullscreen": "Salir de pantalla completa",
     "editCourse": "Editar curso",
     "doneEditing": "Terminar edición",
-    "proModeDisabledHint": "La edición no está disponible en esta página — abre una diapositiva del curso para editar con el modo Pro."
+    "proModeDisabledHint": "La edición no está disponible en esta página — abre una diapositiva del curso para editar con el modo Pro.",
+    "generationPrompt": "Indicación original",
+    "generationPromptTitle": "Indicación usada para esta clase",
+    "generationPromptHint": "Esto se escribió al generar esta versión. Puedes consultarlo al modificar la clase.",
+    "generationPromptVersion": "Versión {{index}} · {{time}}",
+    "generationPromptCopy": "Copiar",
+    "generationPromptCopied": "Copiado"
   },
   "edit": {
     "proMode": "Pro",
