@@ -44,6 +44,8 @@ function wrapStore(store: RuntimeStore, overrides: Partial<RuntimeStore>): Runti
 
 describe('quiz attempt runtime persistence', () => {
   beforeEach(() => {
+    // These race fixtures exercise browsers without Web Locks. New Node versions expose it.
+    vi.stubGlobal('navigator', {});
     Object.defineProperty(globalThis, 'IDBKeyRange', {
       configurable: true,
       value: IDBKeyRange,
@@ -52,6 +54,7 @@ describe('quiz attempt runtime persistence', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 
   it('coalesces rapid draft changes into one latest snapshot', async () => {

@@ -109,7 +109,7 @@ async function generateWithProgress(input: Partial<GenerateClassroomInput> = {})
     {
       baseUrl: 'http://localhost',
       onProgress: (event) => {
-        progress.push({ message: event.message });
+        progress.push(event);
       },
     },
   );
@@ -182,6 +182,18 @@ describe('classroom scene generation retries', () => {
     expect(progress.some((event) => event.message.includes('Retrying scene 1/1 content'))).toBe(
       true,
     );
+  });
+
+  it('keeps the school-reserved lesson id throughout generation', async () => {
+    mocks.generateSceneContent.mockResolvedValue(slideContent);
+    const { generateClassroom } = await import('@/lib/server/classroom-generation');
+    const result = await generateClassroom(
+      { requirement: '认识数字' },
+      { baseUrl: 'http://localhost', stageId: 'school-lesson-1' },
+    );
+    expect(result.id).toBe('school-lesson-1');
+    expect(result.stage.id).toBe('school-lesson-1');
+    expect(result.scenes.every((scene) => scene.stageId === 'school-lesson-1')).toBe(true);
   });
 
   it('forwards classroom thinking config to scene retry LLM calls', async () => {
@@ -460,5 +472,35 @@ describe('classroom scene generation retries', () => {
     for (const scene of retry.scenes) {
       expect(scene.stageId).toBe('stagegen02');
     }
+  });
+  it('includes media and narration item counts in observable generation progress', async () => {
+    mocks.generateSceneContent.mockResolvedValue(slideContent);
+    mocks.generateMediaForClassroom.mockImplementation(async (_outlines, _id, _url, progress) => {
+      await progress?.({ completed: 2, total: 3, failed: 1 });
+      return {};
+    });
+    mocks.generateTTSForClassroom.mockImplementation(async (_scenes, _id, _url, progress) => {
+      await progress?.({ completed: 4, total: 6, failed: 0 });
+    });
+    const { progress } = await generateWithProgress({
+      enableImageGeneration: true,
+      enableTTS: true,
+    });
+    expect(progress).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          step: 'generating_media',
+          itemsCompleted: 2,
+          itemsTotal: 3,
+          mediaFailed: 1,
+        }),
+        expect.objectContaining({
+          step: 'generating_tts',
+          itemsCompleted: 4,
+          itemsTotal: 6,
+          ttsFailed: 0,
+        }),
+      ]),
+    );
   });
 });

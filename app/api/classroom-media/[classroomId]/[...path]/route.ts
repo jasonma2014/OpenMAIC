@@ -1,3 +1,4 @@
+import { isSaasEnabled } from '@/lib/config/feature-flags';
 import { promises as fs, createReadStream, type ReadStream } from 'fs';
 import path from 'path';
 import { NextRequest, NextResponse } from 'next/server';
@@ -41,6 +42,7 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ classroomId: string; path: string[] }> },
 ) {
+  if (isSaasEnabled()) return new Response('Not found', { status: 404 });
   const { classroomId, path: pathSegments } = await params;
 
   // Validate classroomId

@@ -135,10 +135,12 @@ describe('generateMediaForClassroom model fallback', () => {
       },
     ] as unknown as SceneOutline[];
 
+    const onProgress = vi.fn();
     await expect(
-      generateMediaForClassroom(outlines, 'cls-disabled', 'http://localhost'),
+      generateMediaForClassroom(outlines, 'cls-disabled', 'http://localhost', onProgress),
     ).resolves.toEqual({});
     expect(fetchMock).not.toHaveBeenCalled();
+    expect(onProgress).toHaveBeenLastCalledWith({ completed: 2, total: 2, failed: 2 });
   });
 
   test('falls back to the first catalog image model when the server pins no models', async () => {
@@ -174,7 +176,14 @@ describe('generateMediaForClassroom model fallback', () => {
       },
     ] as unknown as SceneOutline[];
 
-    const mediaMap = await generateMediaForClassroom(outlines, 'cls-fallback', 'http://localhost');
+    const onProgress = vi.fn();
+    const mediaMap = await generateMediaForClassroom(
+      outlines,
+      'cls-fallback',
+      'http://localhost',
+      onProgress,
+    );
+    expect(onProgress).toHaveBeenLastCalledWith({ completed: 1, total: 1, failed: 0 });
 
     expect(mediaMap['gen_img_1']).toBe(
       'http://localhost/api/classroom-media/cls-fallback/media/gen_img_1.png',

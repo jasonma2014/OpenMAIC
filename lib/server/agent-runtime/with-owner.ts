@@ -1,5 +1,8 @@
 import { isSaasEnabled } from '@/lib/config/feature-flags';
 import { saasPrincipalFromHeaders } from '@/lib/saas/principal';
+import { openSaasDb } from '@/lib/saas/db';
+import { lessonDocumentAccess } from '@/lib/saas/lessons';
+import { readStageMeta } from '@/lib/persistence/stage-meta';
 
 import { resolveRequestOwnerId } from './owner';
 
@@ -13,7 +16,7 @@ import { resolveRequestOwnerId } from './owner';
  * the retry a different anonymous owner.
  */
 export async function withRequestOwnerId(
-  req: Pick<Request, 'headers'>,
+  req: Pick<Request, 'headers'> & Partial<Pick<Request, 'url' | 'method'>>,
   handler: (ownerId: string, responseHeaders: Headers) => Promise<Response>,
 ): Promise<Response> {
   const responseHeaders = new Headers();
@@ -25,6 +28,34 @@ export async function withRequestOwnerId(
           status: 401,
           headers: responseHeaders,
         });
+      }
+      if (req.url) {
+        const pathname = new URL(req.url).pathname;
+        // The old workbench has organization-wide mutation powers. School
+        // courses use class-bound generation, editing, and the library instead.
+        if (
+          pathname.startsWith('/api/agent/') ||
+          pathname.startsWith('/api/folders') ||
+          (pathname === '/api/stages' && req.method !== 'GET')
+        ) {
+          return Response.json({ error: '请从学校首页备课和管理课程' }, { status: 403 });
+        }
+        const stage = pathname.match(/^\/api\/stages\/([^/]+)(?:\/|$)/);
+        if (stage && !pathname.endsWith('/publish')) {
+          const stageId = decodeURIComponent(stage[1]);
+          const db = await openSaasDb();
+          const meta = await readStageMeta(db, stageId);
+          const access = await lessonDocumentAccess(
+            db,
+            principal,
+            {
+              kind: req.method === 'GET' ? 'read' : 'write',
+              stageId,
+            },
+            meta,
+          );
+          if (access !== 'allow') return Response.json({ error: 'forbidden' }, { status: 403 });
+        }
       }
       return await handler(principal.orgId, responseHeaders);
     } catch (error) {

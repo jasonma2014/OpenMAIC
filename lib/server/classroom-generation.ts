@@ -55,6 +55,13 @@ export function containPBLGenerationError(error: unknown, sceneTitle: string): n
 export interface GenerateClassroomInput {
   requirement: string;
   pdfContent?: { text: string; images: string[] };
+  lessonBrief?: {
+    grade: string;
+    textbook: string;
+    periods: string;
+    objectives: string;
+    baseline: string;
+  };
   enableWebSearch?: boolean;
   webSearchProviderId?: WebSearchProviderId;
   webSearchApiKey?: string;
@@ -77,6 +84,10 @@ export type ClassroomGenerationStep =
   | 'completed';
 
 export interface ClassroomGenerationProgress {
+  itemsCompleted?: number;
+  itemsTotal?: number;
+  mediaFailed?: number;
+  ttsFailed?: number;
   step: ClassroomGenerationStep;
   progress: number;
   message: string;
@@ -198,9 +209,10 @@ Return a JSON object with this exact structure:
  */
 async function reserveGeneratedClassroom(
   buildStage: (id: string) => Stage,
+  reservedId?: string,
 ): Promise<{ id: string; stage: Stage }> {
   for (let attempt = 0; ; attempt += 1) {
-    const id = generateClassroomId();
+    const id = reservedId ?? generateClassroomId();
     const stage = buildStage(id);
     try {
       await reserveClassroom(id, stage);
@@ -208,6 +220,7 @@ async function reserveGeneratedClassroom(
     } catch (error) {
       if (
         !(error instanceof ClassroomAlreadyExistsError) ||
+        reservedId !== undefined ||
         attempt >= CLASSROOM_ID_MAX_ATTEMPTS - 1
       ) {
         throw error;
@@ -221,6 +234,7 @@ export async function generateClassroom(
   input: GenerateClassroomInput,
   options: {
     baseUrl: string;
+    stageId?: string;
     onProgress?: (progress: ClassroomGenerationProgress) => Promise<void> | void;
   },
 ): Promise<GenerateClassroomResult> {
@@ -565,35 +579,38 @@ export async function generateClassroom(
 
   const createdAt = Date.now();
   const generationPrompts = generationPromptsFromRequirement(requirement, createdAt);
-  const { id: stageId, stage } = await reserveGeneratedClassroom((id) => ({
-    id,
-    name: courseTitle || outlines[0]?.title || requirement.slice(0, 50),
-    description: undefined,
-    languageDirective,
-    videoManifest: buildVideoManifestFromOutlines(outlines),
-    style: 'interactive',
-    createdAt,
-    updatedAt: createdAt,
-    ...(generationPrompts ? { generationPrompts } : {}),
-    // For LLM-generated agents, embed full configs so the client can
-    // hydrate the agent registry without prior IndexedDB data.
-    // For default agents, just record IDs — the client already has them.
-    ...(agentMode === 'generate'
-      ? {
-          generatedAgentConfigs: agents.map((a, i) => ({
-            id: a.id,
-            name: a.name,
-            role: a.role,
-            persona: a.persona || '',
-            avatar: AGENT_DEFAULT_AVATARS[i % AGENT_DEFAULT_AVATARS.length],
-            color: AGENT_COLOR_PALETTE[i % AGENT_COLOR_PALETTE.length],
-            priority: a.role === 'teacher' ? 10 : a.role === 'assistant' ? 7 : 5,
-          })),
-        }
-      : {
-          agentIds: agents.map((a) => a.id),
-        }),
-  }));
+  const { id: stageId, stage } = await reserveGeneratedClassroom(
+    (id) => ({
+      id,
+      name: courseTitle || outlines[0]?.title || requirement.slice(0, 50),
+      description: undefined,
+      languageDirective,
+      videoManifest: buildVideoManifestFromOutlines(outlines),
+      style: 'interactive',
+      createdAt,
+      updatedAt: createdAt,
+      ...(generationPrompts ? { generationPrompts } : {}),
+      // For LLM-generated agents, embed full configs so the client can
+      // hydrate the agent registry without prior IndexedDB data.
+      // For default agents, just record IDs — the client already has them.
+      ...(agentMode === 'generate'
+        ? {
+            generatedAgentConfigs: agents.map((a, i) => ({
+              id: a.id,
+              name: a.name,
+              role: a.role,
+              persona: a.persona || '',
+              avatar: AGENT_DEFAULT_AVATARS[i % AGENT_DEFAULT_AVATARS.length],
+              color: AGENT_COLOR_PALETTE[i % AGENT_COLOR_PALETTE.length],
+              priority: a.role === 'teacher' ? 10 : a.role === 'assistant' ? 7 : 5,
+            })),
+          }
+        : {
+            agentIds: agents.map((a) => a.id),
+          }),
+    }),
+    options.stageId,
+  );
 
   // The reservation above claims the id; everything below owns it. If
   // generation throws before `persistClassroom` succeeds, release the
@@ -726,7 +743,23 @@ export async function generateClassroom(
       });
 
       try {
-        const mediaMap = await generateMediaForClassroom(outlines, stageId, options.baseUrl);
+        const mediaMap = await generateMediaForClassroom(
+          outlines,
+          stageId,
+          options.baseUrl,
+          async (items) => {
+            await options.onProgress?.({
+              step: 'generating_media',
+              progress: 90 + Math.floor((4 * items.completed) / Math.max(items.total, 1)),
+              message: `Media ${items.completed}/${items.total}`,
+              scenesGenerated: scenes.length,
+              totalScenes: outlines.length,
+              itemsCompleted: items.completed,
+              itemsTotal: items.total,
+              mediaFailed: items.failed,
+            });
+          },
+        );
         replaceMediaPlaceholders(scenes, mediaMap);
         log.info(`Media generation complete: ${Object.keys(mediaMap).length} files`);
       } catch (err) {
@@ -745,7 +778,18 @@ export async function generateClassroom(
       });
 
       try {
-        await generateTTSForClassroom(scenes, stageId, options.baseUrl);
+        await generateTTSForClassroom(scenes, stageId, options.baseUrl, async (items) => {
+          await options.onProgress?.({
+            step: 'generating_tts',
+            progress: 94 + Math.floor((4 * items.completed) / Math.max(items.total, 1)),
+            message: `Narration ${items.completed}/${items.total}`,
+            scenesGenerated: scenes.length,
+            totalScenes: outlines.length,
+            itemsCompleted: items.completed,
+            itemsTotal: items.total,
+            ttsFailed: items.failed,
+          });
+        });
         log.info('TTS generation complete');
       } catch (err) {
         log.warn('TTS generation phase failed, continuing:', err);

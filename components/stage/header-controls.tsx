@@ -28,6 +28,8 @@ import { CircularProgress } from '@/components/ui/circular-progress';
 import { VideoExportDialog } from './video-export-dialog';
 import { GenerationPromptButton } from '@/components/stage/generation-prompt-button';
 import { PublishClassButton } from '@/components/saas/publish-class-button';
+import { LessonRevisionDialog } from '@/components/saas/lesson-revision-dialog';
+import { LessonResultsDialog } from '@/components/saas/lesson-results-dialog';
 import { LanguageSwitcher } from '../language-switcher';
 import { SettingsDialog } from '../settings';
 import {
@@ -264,7 +266,13 @@ export function HeaderControls({
 
       <GenerationPromptButton />
 
-      {showCourseActions ? <PublishClassButton /> : null}
+      {showCourseActions && canEdit ? (
+        <>
+          <LessonRevisionDialog />
+          <PublishClassButton />
+          <LessonResultsDialog />
+        </>
+      ) : null}
 
       {/* Export / Download — lives to the right of the Pro Switch.
           Not a settings function so it does not belong inside the

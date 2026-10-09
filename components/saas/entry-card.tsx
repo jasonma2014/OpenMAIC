@@ -22,13 +22,13 @@ export function SaasEntryCard({ loading, student }: { loading: boolean; student:
               <Link href="/login">{t('saas.loginTitle')}</Link>
             </Button>
             <Button asChild variant="outline">
-              <Link href="/register">{t('saas.registerTitle')}</Link>
+              <Link href="/register/teacher">{t('saas.register-teacherTitle')}</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/register/student">{t('saas.register-studentTitle')}</Link>
             </Button>
           </>
         )}
-        <Button asChild variant={student ? 'default' : 'ghost'}>
-          <Link href="/join">{t('saas.joinTitle')}</Link>
-        </Button>
       </div>
     </div>
   );

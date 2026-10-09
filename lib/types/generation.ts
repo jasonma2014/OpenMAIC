@@ -100,6 +100,13 @@ export interface UploadedDocument {
  */
 export interface UserRequirements {
   requirement: string; // Single free-form text for all user input
+  lessonBrief?: {
+    grade: string;
+    textbook: string;
+    periods: string;
+    objectives: string;
+    baseline: string;
+  };
   userNickname?: string; // Student nickname for personalization
   userBio?: string; // Student background for personalization
   webSearch?: boolean; // Enable web search for richer context

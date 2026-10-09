@@ -28,7 +28,12 @@ export function PublishClassButton() {
   const [copied, setCopied] = useState(false);
   const codeRef = useRef<HTMLInputElement>(null);
 
-  if (session.status !== 'signed-in' || !canPerform(session.account.role, 'publish') || !stageId) {
+  if (
+    session.status !== 'signed-in' ||
+    !session.account.role ||
+    !canPerform(session.account.role, 'publish') ||
+    !stageId
+  ) {
     return null;
   }
 
@@ -41,14 +46,17 @@ export function PublishClassButton() {
         method: 'POST',
         credentials: 'include',
       });
-      const body = (await response.json().catch(() => null)) as { classCode?: string } | null;
-      if (!response.ok || !body?.classCode) {
+      const body = (await response.json().catch(() => null)) as {
+        courseCode?: string;
+        error?: string;
+      } | null;
+      if (!response.ok || !body?.courseCode) {
         setClassCode('');
-        setError(t('saas.publishFailed'));
+        setError(body?.error === 'need_class' ? t('saas.needClass') : t('saas.publishFailed'));
         setOpen(true);
         return;
       }
-      setClassCode(body.classCode);
+      setClassCode(body.courseCode);
       setCopied(false);
       setOpen(true);
     } catch {

@@ -27,6 +27,7 @@
  */
 
 import { Stage } from '@/components/stage';
+import { SchoolAttendance } from '@/components/saas/school-attendance';
 import { ThemeProvider } from '@/lib/hooks/use-theme';
 import { useStageStore } from '@/lib/store';
 import { useSettingsStore } from '@/lib/store/settings';
@@ -499,6 +500,7 @@ export function ClassroomSurface({
   return (
     <ThemeProvider>
       <MediaStageProvider value={classroomId}>
+        <SchoolAttendance stageId={classroomId} ready={!loading && !error && !notFound} />
         <div
           className={
             variant === 'pane'

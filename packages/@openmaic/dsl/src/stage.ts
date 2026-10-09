@@ -217,6 +217,8 @@ export interface QuizQuestion {
   commentPrompt?: string; // Grading guidance for text questions
   hasAnswer?: boolean; // Whether auto-grading is possible
   points?: number; // Points per question (default 1)
+  /** How this item is practiced: ordering, matching, classification, or a single choice. */
+  exerciseType?: 'order' | 'match' | 'classify' | 'choice';
 }
 
 /**

@@ -23,7 +23,11 @@ export async function middleware(request: NextRequest) {
   }
 
   // Whitelist: access-code endpoints, health check
-  if (pathname.startsWith('/api/access-code/') || pathname === '/api/health') {
+  if (
+    pathname.startsWith('/api/access-code/') ||
+    pathname === '/api/health' ||
+    (pathname === '/api/saas/payments/alipay/notify' && request.method === 'POST')
+  ) {
     return NextResponse.next();
   }
 

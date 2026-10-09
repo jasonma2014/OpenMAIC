@@ -27,6 +27,8 @@ import { NextResponse } from 'next/server';
 import { isSaasEnabled, isServerPersistenceConfigured } from '@/lib/config/feature-flags';
 import { saasPrincipalFromHeaders } from '@/lib/saas/principal';
 import { viewerOwnsCourse } from '@/lib/saas/student-access';
+import { lessonDocumentAccess } from '@/lib/saas/lessons';
+import { openSaasDb } from '@/lib/saas/db';
 import { resolveStageAccess } from '@/lib/server/stage-access';
 import { withRequestOwnerId } from '@/lib/server/agent-runtime/with-owner';
 
@@ -65,7 +67,23 @@ export async function GET(req: NextRequest, { params }: Params) {
       const role = isSaasEnabled()
         ? (await saasPrincipalFromHeaders(req.headers))?.role
         : undefined;
-      const isOwner = viewerOwnsCourse(access.ownerId === ownerId, role);
+      let isOwner = viewerOwnsCourse(access.ownerId === ownerId, role);
+      if (isSaasEnabled()) {
+        const principal = await saasPrincipalFromHeaders(req.headers);
+        const db = await openSaasDb();
+        if (
+          !principal ||
+          (await lessonDocumentAccess(db, principal, { kind: 'read', stageId }, access)) !== 'allow'
+        ) {
+          return NextResponse.json(
+            { error: 'not_found' },
+            { status: 404, headers: responseHeaders },
+          );
+        }
+        isOwner =
+          (await lessonDocumentAccess(db, principal, { kind: 'write', stageId }, access)) ===
+          'allow';
+      }
 
       return NextResponse.json(
         {

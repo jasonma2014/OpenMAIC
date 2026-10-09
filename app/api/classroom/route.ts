@@ -1,3 +1,4 @@
+import { isSaasEnabled } from '@/lib/config/feature-flags';
 import { type NextRequest } from 'next/server';
 import { validateScene } from '@openmaic/dsl';
 import { apiSuccess, apiError, API_ERROR_CODES } from '@/lib/server/api-response';
@@ -21,6 +22,7 @@ function describeSceneIssue(issue: { path: string; message: string }): string {
 }
 
 export async function POST(request: NextRequest) {
+  if (isSaasEnabled()) return new Response('Not found', { status: 404 });
   let stageId: string | undefined;
   let sceneCount: number | undefined;
   try {
@@ -129,6 +131,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  if (isSaasEnabled()) return new Response('Not found', { status: 404 });
   try {
     const id = request.nextUrl.searchParams.get('id');
 

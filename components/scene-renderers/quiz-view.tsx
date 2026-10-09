@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/hooks/use-i18n';
-import { refreshBalanceAfterSpend } from '@/lib/saas/use-saas-session';
+import { refreshBalanceAfterSpend, useSaasSession } from '@/lib/saas/use-saas-session';
 import { getCurrentModelConfig } from '@/lib/utils/model-config';
 import { createLogger } from '@/lib/logger';
 
@@ -701,6 +701,9 @@ function ScoreBanner({
 
 export function QuizView({ questions, sceneId, stageId }: QuizViewProps) {
   const { t, locale } = useI18n();
+  const schoolSession = useSaasSession();
+  const isSchoolStudent =
+    schoolSession.status === 'signed-in' && schoolSession.account.role === 'student';
 
   const [phase, setPhase] = useState<Phase>('not_started');
   const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
@@ -786,15 +789,51 @@ export function QuizView({ questions, sceneId, stageId }: QuizViewProps) {
     if (!attemptId) return;
     setPhase('submitting');
     await runQuizPersistenceTransition(
-      () => persistQuizSubmission({ stageId, sceneId, attemptId, answers }, runtimeWriter),
+      async () => {
+        if (isSchoolStudent) {
+          const response = await fetch(`/api/saas/lessons/${encodeURIComponent(stageId)}/results`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ action: 'submit', sceneId, attemptId, answers }),
+          });
+          const body = (await response.json().catch(() => null)) as {
+            error?: string;
+            answers?: Array<{
+              questionId: string;
+              correct: boolean | null;
+              comment?: string;
+              followUp?: { prompt: string };
+            }>;
+          } | null;
+          if (!response.ok) throw new Error(body?.error || '练习结果提交失败，请重试');
+          const recorded = new Map((body?.answers ?? []).map((answer) => [answer.questionId, answer]));
+          setResults(
+            questions.map((question) => {
+              const answer = recorded.get(question.id);
+              const correct = answer?.correct === true;
+              const comment = [answer?.comment, answer?.followUp ? `再试一次：${answer.followUp.prompt}` : '']
+                .filter(Boolean)
+                .join('\n');
+              return {
+                questionId: question.id,
+                correct: answer?.correct ?? false,
+                status: correct ? 'correct' : 'incorrect',
+                earned: correct ? (question.points ?? 1) : 0,
+                ...(comment ? { aiComment: comment } : {}),
+              };
+            }),
+          );
+        }
+        return persistQuizSubmission({ stageId, sceneId, attemptId, answers }, runtimeWriter);
+      },
       viewLifetime,
-      () => setPhase('grading'),
+      () => setPhase(isSchoolStudent ? 'reviewing' : 'grading'),
       (error) => {
         log.warn('Failed to persist quiz submission:', error);
         setRuntimeGate({ status: 'error' });
       },
     );
-  }, [attemptId, answers, runtimeWriter, sceneId, stageId, viewLifetime]);
+  }, [attemptId, answers, questions, runtimeWriter, sceneId, stageId, viewLifetime, isSchoolStudent]);
 
   // When entering grading phase, grade choice questions locally + call API for short-answer
   useEffect(() => {

@@ -199,7 +199,7 @@ export async function principalForToken(
 ): Promise<SaasPrincipal | undefined> {
   if (!token) return undefined;
   const found = await db.query<SessionRow>(
-    `SELECT u.id AS user_id, u.email, o.id AS org_id, o.name AS org_name, m.role, w.balance_milli_yuan
+    `SELECT u.id AS user_id, COALESCE(u.email, u.phone, '') AS email, o.id AS org_id, o.name AS org_name, m.role, w.balance_milli_yuan
      FROM saas_sessions s
      JOIN saas_users u ON u.id = s.user_id
      JOIN saas_orgs o ON o.id = s.org_id

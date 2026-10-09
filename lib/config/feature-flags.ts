@@ -152,12 +152,7 @@ export function isPptxImportEnabled(): boolean {
   return readBoolean(process.env.NEXT_PUBLIC_ENABLE_PPTX_IMPORT);
 }
 
-/**
- * Multi-tenant SaaS mode. Default OFF, so a local `pnpm dev` keeps the
- * existing single-operator classroom. When on, generation must bill an
- * organization wallet and identity comes from a server session, not from
- * `PERSISTENCE_DEV_TOKEN` or a client-supplied learner key.
- */
+/** School accounts are mandatory in every delivered environment. */
 export function isSaasEnabled(): boolean {
-  return readBoolean(process.env.OPENMAIC_SAAS_ENABLED);
+  return true;
 }

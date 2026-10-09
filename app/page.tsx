@@ -85,6 +85,7 @@ import { useImportClassroom } from '@/lib/import/use-import-classroom';
 import { SaasAccountMenu } from '@/components/saas/account-menu';
 import { LessonQuote } from '@/components/saas/lesson-quote';
 import { SaasEntryCard } from '@/components/saas/entry-card';
+import { SchoolDesk } from '@/components/saas/school-desk';
 import { BrandLockup } from '@/components/brand/brand-lockup';
 import { GenerationGuide } from '@/components/home/generation-guide';
 import { useBrand } from '@/lib/brand/brand-context';
@@ -121,6 +122,11 @@ let workbenchRuntimeCache: boolean | null = null;
 interface FormState {
   courseMaterials: SelectedCourseMaterial[];
   requirement: string;
+  grade: string;
+  textbook: string;
+  periods: string;
+  objectives: string;
+  baseline: string;
   webSearch: boolean;
   interactiveMode: boolean;
   vocationalTestMode: boolean;
@@ -129,6 +135,11 @@ interface FormState {
 const initialFormState: FormState = {
   courseMaterials: [],
   requirement: '',
+  grade: '',
+  textbook: '',
+  periods: '',
+  objectives: '',
+  baseline: '',
   webSearch: false,
   interactiveMode: false,
   vocationalTestMode: false,
@@ -140,9 +151,13 @@ function HomePage() {
   const saasMode = useSaasMode();
   const session = useSaasSession();
   const showGenerator =
-    !saasMode || (session.status === 'signed-in' && session.account.role !== 'student');
+    !saasMode ||
+    (session.status === 'signed-in' &&
+      (session.account.role === 'teacher' || session.account.role === 'org_admin'));
   const needsQuote =
-    saasMode && session.status === 'signed-in' && session.account.role !== 'student';
+    saasMode &&
+    session.status === 'signed-in' &&
+    (session.account.role === 'teacher' || session.account.role === 'org_admin');
   const [quoteOk, setQuoteOk] = useState(false);
   const acceptQuote = useCallback((ok: boolean) => setQuoteOk(ok), []);
   const { theme, setTheme } = useTheme();
@@ -232,6 +247,14 @@ function HomePage() {
   // render the comparison was always equal and the restore never fired. Use an effect
   // so the cache is hydrated into the form once we know the live requirement is empty.
   const draftRestoredRef = useRef(false);
+  const briefRestoredRef = useRef(false);
+  useEffect(() => {
+    if (briefRestoredRef.current || session.status !== 'signed-in' || !session.account.lessonBrief)
+      return;
+    briefRestoredRef.current = true;
+    const saved = session.account.lessonBrief;
+    setForm((prev) => (prev.grade || prev.objectives ? prev : { ...prev, ...saved }));
+  }, [session]);
   useEffect(() => {
     if (draftRestoredRef.current) return;
     if (!cachedRequirement) return;
@@ -361,7 +384,7 @@ function HomePage() {
     // Both reads resolve before flipping `hydrated`, so the hero layout does
     // not thrash as each lands independently.
     if (saasMode && session.status === 'loading') return;
-    if (session.status === 'signed-out') {
+    if (saasMode || session.status === 'signed-out') {
       setHydrated(true);
       return () => {
         revokeThumbnailSlideMediaUrls(thumbnailsRef.current);
@@ -601,6 +624,10 @@ function HomePage() {
       setError(t('upload.requirementRequired'));
       return;
     }
+    if (saasMode && (!form.grade.trim() || !form.objectives.trim())) {
+      setError(t('upload.lessonBriefRequired'));
+      return;
+    }
 
     setError(null);
 
@@ -632,6 +659,17 @@ function HomePage() {
       const userProfile = useUserProfileStore.getState();
       const requirements: UserRequirements = {
         requirement: form.requirement,
+        ...(saasMode
+          ? {
+              lessonBrief: {
+                grade: form.grade.trim(),
+                textbook: form.textbook.trim(),
+                periods: form.periods.trim(),
+                objectives: form.objectives.trim(),
+                baseline: form.baseline.trim(),
+              },
+            }
+          : {}),
         userNickname: userProfile.nickname || undefined,
         userBio: userProfile.bio || undefined,
         webSearch: form.webSearch || undefined,
@@ -720,7 +758,10 @@ function HomePage() {
 
   const canGenerate =
     !!form.requirement.trim() &&
-    (hasUsableProvider || (session.status === 'signed-in' && session.account.role !== 'student')) &&
+    (!saasMode || (!!form.grade.trim() && !!form.objectives.trim())) &&
+    (hasUsableProvider ||
+      (session.status === 'signed-in' &&
+        (session.account.role === 'teacher' || session.account.role === 'org_admin'))) &&
     (!needsQuote || quoteOk);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -902,11 +943,9 @@ function HomePage() {
           transition={{ delay: 0.35 }}
           className="w-full"
         >
-          {!showGenerator ? (
-            <SaasEntryCard
-              loading={session.status === 'loading'}
-              student={session.status === 'signed-in'}
-            />
+          {saasMode && session.status === 'signed-in' ? <SchoolDesk /> : null}
+          {!showGenerator && session.status !== 'signed-in' ? (
+            <SaasEntryCard loading={session.status === 'loading'} student={false} />
           ) : null}
           <div
             data-pro-morph="composer"
@@ -924,6 +963,40 @@ function HomePage() {
             </div>
 
             {/* Textarea */}
+            {saasMode ? (
+              <div className="grid grid-cols-2 gap-2 px-4 pb-2">
+                <input
+                  value={form.grade}
+                  onChange={(e) => updateForm('grade', e.target.value)}
+                  placeholder={t('upload.grade')}
+                  className="rounded-md border bg-transparent px-2 py-1 text-[13px]"
+                />
+                <input
+                  value={form.textbook}
+                  onChange={(e) => updateForm('textbook', e.target.value)}
+                  placeholder={t('upload.textbook')}
+                  className="rounded-md border bg-transparent px-2 py-1 text-[13px]"
+                />
+                <input
+                  value={form.periods}
+                  onChange={(e) => updateForm('periods', e.target.value)}
+                  placeholder={t('upload.periods')}
+                  className="rounded-md border bg-transparent px-2 py-1 text-[13px]"
+                />
+                <input
+                  value={form.baseline}
+                  onChange={(e) => updateForm('baseline', e.target.value)}
+                  placeholder={t('upload.baseline')}
+                  className="rounded-md border bg-transparent px-2 py-1 text-[13px]"
+                />
+                <input
+                  value={form.objectives}
+                  onChange={(e) => updateForm('objectives', e.target.value)}
+                  placeholder={t('upload.objectives')}
+                  className="col-span-2 rounded-md border bg-transparent px-2 py-1 text-[13px]"
+                />
+              </div>
+            ) : null}
             <textarea
               ref={textareaRef}
               placeholder={t('upload.requirementPlaceholder')}
@@ -1065,7 +1138,9 @@ function HomePage() {
             </motion.div>
           )}
         </AnimatePresence>
-        {session.status !== 'signed-in' || session.account.role !== 'student' ? (
+        {session.status !== 'signed-in' ||
+        session.account.role === 'teacher' ||
+        session.account.role === 'org_admin' ? (
           <GenerationGuide priced={saasMode} />
         ) : null}
       </motion.div>
@@ -1075,7 +1150,7 @@ function HomePage() {
           the New-folder / import / search actions, so a brand-new user with
           zero courses and zero folders can still create the first folder or
           import. One stable action surface across root, folder, and empty. */}
-      {hydrated && session.status !== 'signed-out' && (
+      {hydrated && !saasMode && session.status !== 'signed-out' && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -1422,8 +1497,7 @@ function GreetingBar() {
 
   const saasMode = useSaasMode();
   const session = useSaasSession();
-  const student =
-    saasMode && session.status === 'signed-in' && session.account.role === 'student';
+  const student = saasMode && session.status === 'signed-in' && session.account.role === 'student';
   const displayName =
     nickname.trim() ||
     t(saasMode && !student ? 'profile.defaultTeacherNickname' : 'profile.defaultNickname');

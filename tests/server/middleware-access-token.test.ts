@@ -56,6 +56,13 @@ describe('middleware access-token gate', () => {
     expect(response.status).toBe(401);
   });
 
+  it('allows signed Alipay callbacks to reach their own verifier without a browser cookie', async () => {
+    const response = await middleware(
+      new NextRequest('http://localhost/api/saas/payments/alipay/notify', { method: 'POST' }),
+    );
+    expect(response.status).toBe(200);
+  });
+
   it('rejects a missing cookie', async () => {
     const response = await middleware(apiRequest());
     expect(response.status).toBe(401);

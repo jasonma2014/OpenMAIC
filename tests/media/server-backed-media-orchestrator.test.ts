@@ -1374,15 +1374,24 @@ describe('server-backed classic media orchestrator', () => {
     });
 
     const first = generateMediaForOutlines(outlines, stageId);
-    // Give the second pass every chance to run: if it were not waiting, its
-    // collection loop is synchronous and element two is only `pending`, so it
-    // would have called the provider by now.
-    for (let tick = 0; tick < 50; tick += 1) await Promise.resolve();
-    expect(providerCallCount()).toBe(callsWhenOverlappingStarted);
-
-    releaseCommit?.();
-    await first;
-    await overlapping;
+    try {
+      // The download's blob() settles on a timer, not a microtask. Wait until
+      // the pool write has started — that is when the second pass is launched —
+      // before deciding whether that pass called the provider.
+      for (let tick = 0; tick < 20 && !overlapping; tick += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      }
+      expect(overlapping).toBeTruthy();
+      // Give the second pass every chance to run: if it were not waiting, its
+      // collection loop is synchronous and element two is only `pending`, so it
+      // would have called the provider by now.
+      for (let tick = 0; tick < 50; tick += 1) await Promise.resolve();
+      expect(providerCallCount()).toBe(callsWhenOverlappingStarted);
+    } finally {
+      releaseCommit?.();
+      await first;
+      await overlapping;
+    }
   });
 
   // The handoff the retry path actually performs: abort the live pass and start

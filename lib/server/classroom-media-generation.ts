@@ -82,10 +82,18 @@ function mediaServingUrl(baseUrl: string, classroomId: string, subPath: string):
 // Image / Video generation
 // ---------------------------------------------------------------------------
 
+export interface MediaItemProgress {
+  completed: number;
+  total: number;
+  failed: number;
+}
+type ProgressListener = (progress: MediaItemProgress) => Promise<void> | void;
+
 export async function generateMediaForClassroom(
   outlines: SceneOutline[],
   classroomId: string,
   baseUrl: string,
+  onProgress?: ProgressListener,
 ): Promise<Record<string, string>> {
   const mediaDir = path.join(CLASSROOMS_DIR, classroomId, 'media');
   await ensureDir(mediaDir);
@@ -109,6 +117,16 @@ export async function generateMediaForClassroom(
   // but run the two types in parallel (providers often have limited concurrency).
   const imageRequests = requests.filter((r) => r.type === 'image' && imageProviderIds.length > 0);
   const videoRequests = requests.filter((r) => r.type === 'video' && videoProviderIds.length > 0);
+
+  const total = requests.length;
+  let completed = total - imageRequests.length - videoRequests.length;
+  let failed = completed;
+  await onProgress?.({ completed, total, failed });
+  const finished = async (elementId: string) => {
+    completed++;
+    if (!mediaMap[elementId]) failed++;
+    await onProgress?.({ completed, total, failed });
+  };
 
   const generateImages = async () => {
     for (const req of imageRequests) {
@@ -156,6 +174,8 @@ export async function generateMediaForClassroom(
         log.info(`Generated image: ${filename}`);
       } catch (err) {
         log.warn(`Image generation failed for ${req.elementId}:`, err);
+      } finally {
+        await finished(req.elementId);
       }
     }
   };
@@ -195,6 +215,8 @@ export async function generateMediaForClassroom(
         log.info(`Generated video: ${filename}`);
       } catch (err) {
         log.warn(`Video generation failed for ${req.elementId}:`, err);
+      } finally {
+        await finished(req.elementId);
       }
     }
   };
@@ -252,9 +274,18 @@ export async function generateTTSForClassroom(
   scenes: Scene[],
   classroomId: string,
   baseUrl: string,
+  onProgress?: ProgressListener,
 ): Promise<void> {
   const audioDir = path.join(CLASSROOMS_DIR, classroomId, 'audio');
   await ensureDir(audioDir);
+
+  let total = scenes.reduce(
+    (count, scene) =>
+      count +
+      (scene.actions?.filter((action) => action.type === 'speech' && action.text).length ?? 0),
+    0,
+  );
+  const skipped = async () => onProgress?.({ completed: total, total, failed: total });
 
   // Resolve TTS provider (exclude browser-native-tts and operator force-disabled
   // providers — server precedence, #665).
@@ -263,6 +294,7 @@ export async function generateTTSForClassroom(
     .map(([id]) => id);
   if (ttsProviderIds.length === 0) {
     log.warn('No server TTS provider configured, skipping TTS generation');
+    await skipped();
     return;
   }
 
@@ -271,6 +303,7 @@ export async function generateTTSForClassroom(
   const ttsProvider = TTS_PROVIDERS[providerId as keyof typeof TTS_PROVIDERS];
   if (ttsProvider?.requiresApiKey && !apiKey) {
     log.warn(`No API key for TTS provider "${providerId}", skipping TTS generation`);
+    await skipped();
     return;
   }
   const ttsBaseUrl = resolveTTSBaseUrl(providerId) || ttsProvider?.defaultBaseUrl;
@@ -278,15 +311,24 @@ export async function generateTTSForClassroom(
   const format = ttsProvider?.supportedFormats?.[0] || 'mp3';
   if (providerId === VOXCPM_TTS_PROVIDER_ID && voice === VOXCPM_AUTO_VOICE_ID) {
     log.warn('VoxCPM Auto Voice requires agent context; skipping server-side TTS generation');
+    await skipped();
     return;
   }
 
   for (const scene of scenes) {
+    if (scene.actions) scene.actions = splitLongSpeechActions(scene.actions, providerId);
+  }
+  total = scenes.reduce(
+    (count, scene) =>
+      count +
+      (scene.actions?.filter((action) => action.type === 'speech' && action.text).length ?? 0),
+    0,
+  );
+  let completed = 0;
+  let failed = 0;
+  await onProgress?.({ completed, total, failed });
+  for (const scene of scenes) {
     if (!scene.actions) continue;
-
-    // Split long speech actions into multiple shorter ones before TTS generation,
-    // mirroring the client-side approach. Each sub-action gets its own audio file.
-    scene.actions = splitLongSpeechActions(scene.actions, providerId);
 
     // Use scene order to make audio IDs unique across scenes
     const sceneOrder = scene.order;
@@ -319,7 +361,11 @@ export async function generateTTSForClassroom(
         speechAction.audioUrl = mediaServingUrl(baseUrl, classroomId, `audio/${filename}`);
         log.info(`Generated TTS: ${filename} (${result.audio.length} bytes)`);
       } catch (err) {
+        failed++;
         log.warn(`TTS generation failed for action ${action.id}:`, err);
+      } finally {
+        completed++;
+        await onProgress?.({ completed, total, failed });
       }
     }
   }

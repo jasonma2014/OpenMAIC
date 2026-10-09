@@ -27,7 +27,9 @@ import {
 import { readStageMeta } from '@/lib/persistence/stage-meta';
 import { APP_RUNTIME_PAYLOAD_VALIDATORS } from '@/lib/runtime/payload-validators';
 import { saasPrincipalFromHeaders } from '@/lib/saas/principal';
-import { tightenStudentAccess } from '@/lib/saas/student-access';
+import { lessonDocumentAccess } from '@/lib/saas/lessons';
+import { openSaasDb } from '@/lib/saas/db';
+import type { SaasPrincipal } from '@/lib/saas/accounts';
 import { withRequestOwnerId } from '@/lib/server/agent-runtime/with-owner';
 
 export const runtime = 'nodejs';
@@ -149,7 +151,7 @@ async function createPersistenceHandler(
     authenticate: async (request) => {
       if (request.url?.startsWith('/documents')) return { learnerKey: ownerId };
       if (request.url?.startsWith('/assets')) {
-        return { key: SHARED_ASSET_PRINCIPAL, learnerKey: ownerId };
+        return { key: runtimeLearnerKey ? ownerId : SHARED_ASSET_PRINCIPAL, learnerKey: ownerId };
       }
       if (runtimeLearnerKey) return { learnerKey: runtimeLearnerKey };
       return authenticatePersistenceRequest(request);
@@ -335,7 +337,7 @@ export async function handlePersistenceRequest(
     ownerId: string,
     responseHeaders: Headers,
     runtimeLearnerKey?: string,
-    studentPlayOnly = false,
+    schoolPrincipal?: SaasPrincipal,
   ): Promise<Response> => {
     try {
       const path = routeRelativePath(request);
@@ -354,10 +356,9 @@ export async function handlePersistenceRequest(
               .then((result) => result.rows.length > 0),
           (stageId) => readStageMeta(queryable, stageId),
         );
-        if (studentPlayOnly) {
-          const meta =
-            action.kind === 'read' ? await readStageMeta(queryable, action.stageId) : null;
-          access = tightenStudentAccess(action, access, meta, ownerId);
+        if (schoolPrincipal && access === 'allow') {
+          const meta = 'stageId' in action ? await readStageMeta(queryable, action.stageId) : null;
+          access = await lessonDocumentAccess(await openSaasDb(), schoolPrincipal, action, meta);
         }
       }
 
@@ -392,7 +393,7 @@ export async function handlePersistenceRequest(
     try {
       const principal = await saasPrincipalFromHeaders(request.headers);
       if (!principal) return jsonError(401, 'UNAUTHENTICATED', 'Sign in required');
-      return serve(principal.orgId, new Headers(), principal.userId, principal.role === 'student');
+      return serve(principal.orgId, new Headers(), principal.userId, principal);
     } catch (error) {
       console.error('SaaS persistence session lookup failed', error);
       return jsonError(500, 'PERSISTENCE_INIT_FAILED', 'server persistence initialization failed');

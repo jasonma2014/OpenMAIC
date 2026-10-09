@@ -11,6 +11,13 @@ const principal = vi.hoisted(() => ({
 vi.mock('@/lib/saas/principal', () => ({
   saasPrincipalFromHeaders: vi.fn(async () => principal.current),
 }));
+vi.mock('@/lib/saas/db', () => ({
+  openSaasDb: async () => ({
+    query: async () => ({
+      rows: [{ id: 'class-1', orgId: 'org-1', name: '一年级', adminUserId: 'user-1' }],
+    }),
+  }),
+}));
 
 function teacher(balance: number): SaasPrincipal {
   return {

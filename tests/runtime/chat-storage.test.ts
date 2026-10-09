@@ -148,6 +148,10 @@ async function runtimeChatRecords(store: RuntimeStore): Promise<RuntimeRecord[]>
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // Node exposes Web Locks. This file's concurrent cases were written for the
+  // fallback that runs when that API is absent; the real exclusive lock
+  // deadlocks two writers that wait for each other inside listRecords.
+  vi.stubGlobal('navigator', {});
 });
 
 afterEach(() => {

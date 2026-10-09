@@ -54,14 +54,13 @@ describe('GET /api/folders', () => {
     expect(response.status).toBe(404);
   });
 
-  it('lists organization folders when SaaS is on and the agent runtime is off', async () => {
+  it('sends the caller to the school homepage when school accounts are on', async () => {
     mocks.runtimeConfigured = false;
     mocks.saasEnabled = true;
     await mocks.fakeStore!.store.createFolder('folder-a', 'Math');
     const response = await GET(routeRequest('http://localhost/api/folders'));
-    expect(response.status).toBe(200);
-    const body = (await response.json()) as { folders: Array<{ name: string }> };
-    expect(body.folders.map((folder) => folder.name)).toEqual(['Math']);
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({ error: '请从学校首页备课和管理课程' });
   });
 
   it('lists the caller’s folders with their owner key', async () => {

@@ -10,15 +10,17 @@ import { Input } from '@/components/ui/input';
 import { useI18n } from '@/lib/hooks/use-i18n';
 import { refreshSaasSession } from '@/lib/saas/use-saas-session';
 
-type AccountMode = 'login' | 'register' | 'join';
+type AccountMode = 'login' | 'register-teacher' | 'register-student';
 
 export function AccountForm({ mode }: { mode: AccountMode }) {
   const { t } = useI18n();
   const router = useRouter();
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [action, setAction] = useState<'create' | 'join'>('create');
   const [orgName, setOrgName] = useState('');
-  const [code, setCode] = useState('');
+  const [joinCode, setJoinCode] = useState('');
   const [error, setError] = useState('');
   const [pending, setPending] = useState(false);
 
@@ -26,18 +28,23 @@ export function AccountForm({ mode }: { mode: AccountMode }) {
     event.preventDefault();
     setPending(true);
     setError('');
-    const path =
-      mode === 'register'
-        ? '/api/saas/register'
-        : mode === 'join'
-          ? '/api/saas/join'
-          : '/api/saas/login';
+    const path = mode === 'login' ? '/api/saas/login' : '/api/saas/register';
     const payload =
-      mode === 'register'
-        ? { email, password, orgName }
-        : mode === 'join'
-          ? { email, password, code }
-          : { email, password };
+      mode === 'login'
+        ? { email, password }
+        : {
+            email,
+            password,
+            name,
+            kind: mode === 'register-teacher' ? 'teacher' : 'student',
+            ...(mode === 'register-teacher'
+              ? action === 'create'
+                ? { action: 'create', orgName }
+                : { action: 'join', joinCode }
+              : joinCode.trim()
+                ? { joinCode }
+                : {}),
+          };
     try {
       const response = await fetch(path, {
         method: 'POST',
@@ -45,19 +52,12 @@ export function AccountForm({ mode }: { mode: AccountMode }) {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      const body = (await response.json().catch(() => null)) as {
-        error?: string;
-        stageId?: string;
-      } | null;
+      const body = (await response.json().catch(() => null)) as { error?: string } | null;
       if (!response.ok) {
         setError(body?.error || t('saas.failed'));
         return;
       }
       await refreshSaasSession();
-      if (mode === 'join' && body?.stageId) {
-        router.push(`/classroom/${body.stageId}`);
-        return;
-      }
       router.push('/');
     } catch {
       setError(t('saas.failed'));
@@ -77,25 +77,15 @@ export function AccountForm({ mode }: { mode: AccountMode }) {
           <h1 className="text-xl font-semibold">{t(`saas.${mode}Title`)}</h1>
           <p className="mt-1 text-sm text-muted-foreground">{t(`saas.${mode}Hint`)}</p>
         </div>
-        {mode === 'register' && (
+        {mode !== 'login' ? (
           <Input
-            value={orgName}
-            onChange={(event) => setOrgName(event.target.value)}
-            placeholder={t('saas.orgName')}
-            autoComplete="organization"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            placeholder={t('saas.personName')}
+            autoComplete="name"
             required
           />
-        )}
-        {mode === 'join' && (
-          <Input
-            value={code}
-            onChange={(event) => setCode(event.target.value.toUpperCase())}
-            placeholder={t('saas.classCode')}
-            autoComplete="off"
-            maxLength={8}
-            required
-          />
-        )}
+        ) : null}
         <Input
           type="email"
           value={email}
@@ -113,14 +103,62 @@ export function AccountForm({ mode }: { mode: AccountMode }) {
           minLength={8}
           required
         />
+        {mode === 'register-teacher' ? (
+          <div className="space-y-2 text-sm">
+            <label className="flex items-center gap-2">
+              <input
+                type="radio"
+                name="teacher-action"
+                checked={action === 'create'}
+                onChange={() => setAction('create')}
+              />
+              {t('saas.createSchool')}
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="radio"
+                name="teacher-action"
+                checked={action === 'join'}
+                onChange={() => setAction('join')}
+              />
+              {t('saas.joinSchool')}
+            </label>
+            {action === 'create' ? (
+              <Input
+                value={orgName}
+                onChange={(event) => setOrgName(event.target.value)}
+                placeholder={t('saas.orgName')}
+                required
+              />
+            ) : (
+              <Input
+                value={joinCode}
+                onChange={(event) => setJoinCode(event.target.value.toUpperCase())}
+                placeholder={t('saas.joinCode')}
+                required
+              />
+            )}
+          </div>
+        ) : null}
+        {mode === 'register-student' ? (
+          <Input
+            value={joinCode}
+            onChange={(event) => setJoinCode(event.target.value.toUpperCase())}
+            placeholder={t('saas.joinCodeOptional')}
+          />
+        ) : null}
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
         <Button type="submit" className="w-full" disabled={pending}>
           {pending ? t('common.loading') : t(`saas.${mode}Submit`)}
         </Button>
-        <div className="flex justify-between text-sm text-muted-foreground">
-          {mode !== 'login' ? <Link href="/login">{t('saas.loginTitle')}</Link> : <span />}
-          {mode !== 'register' ? <Link href="/register">{t('saas.registerTitle')}</Link> : <span />}
-          {mode !== 'join' ? <Link href="/join">{t('saas.joinTitle')}</Link> : <span />}
+        <div className="flex flex-wrap justify-between gap-2 text-sm text-muted-foreground">
+          {mode !== 'login' ? <Link href="/login">{t('saas.loginTitle')}</Link> : null}
+          {mode !== 'register-teacher' ? (
+            <Link href="/register/teacher">{t('saas.register-teacherTitle')}</Link>
+          ) : null}
+          {mode !== 'register-student' ? (
+            <Link href="/register/student">{t('saas.register-studentTitle')}</Link>
+          ) : null}
         </div>
       </form>
     </main>

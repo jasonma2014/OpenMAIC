@@ -4,6 +4,9 @@ import { canPerform } from '@/lib/saas/roles';
 import { enterSaasOrg } from '@/lib/saas/context';
 import { saasPrincipalFromHeaders } from '@/lib/saas/principal';
 import { apiError } from '@/lib/server/api-response';
+import { manageableClass } from './lessons';
+import { openSaasDb } from './db';
+import { SchoolError } from './school';
 
 export type SaasGate = Response | { orgId: string } | null;
 
@@ -26,6 +29,20 @@ export async function guardSaasAction(
   }
   if (principal.balanceMilliYuan < minimumBalanceMilliYuan) {
     return apiError('INVALID_REQUEST', 402, 'Insufficient credit');
+  }
+  if (action === 'generate') {
+    try {
+      await manageableClass(
+        await openSaasDb(),
+        principal.userId,
+        principal.orgId,
+        headers.get('x-class-group-id') ?? undefined,
+      );
+    } catch (error) {
+      if (error instanceof SchoolError)
+        return apiError('INVALID_REQUEST', 403, '请先由学校管理员创建班级，并指定你为班级管理员');
+      throw error;
+    }
   }
   return { orgId: principal.orgId };
 }
